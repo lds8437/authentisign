@@ -18,7 +18,7 @@ jobs:
           sf org login sfdx-url --sfdx-url-file auth.txt --alias DevHub
       - name: Create Scratch Org
         run: |
-          sf org create scratch --definition-file config/project-scratch-def.json --alias CIScratch --set-default --duration-days 1
+          sf org create scratch --definition-file config/project-scratch-def.json --alias CIScratch --set-default --target-dev-hub ds_authOrg --duration-days 1
       - name: Push Source
         run: |
           sf project deploy start --target-org CIScratch
