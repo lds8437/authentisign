@@ -1,0 +1,17 @@
+<template>
+    <lightning-record-picker
+        label="Select Contact or Lead"
+        object-api-name={objectApiName}
+        onrecordselect={handleRecipientSelect}>
+    </lightning-record-picker>
+    <template for:each={recipients} for:item="recipient">
+        <div key={recipient.id} class="slds-m-top_small">
+            <lightning-input
+                label="Role"
+                value={recipient.role}
+                onchange={handleRoleChange}
+                data-id={recipient.id}>
+            </lightning-input>
+        </div>
+    </template>
+</template>

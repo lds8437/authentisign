@@ -1,0 +1,20 @@
+<template>
+    <lightning-card title="Preview Document">
+        <div>
+            Document ID: {documentId}
+            <br />
+            Recipients: {recipientSummary}
+            <br />
+            Field Mappings: {fieldMappingSummary}
+            <br />
+            Placed Fields: {placedFieldSummary}
+        </div>
+        <div class="slds-m-top_medium">
+            <lightning-button
+                label="Send to Authentisign"
+                variant="brand"
+                onclick={handleSend}>
+            </lightning-button>
+        </div>
+    </lightning-card>
+</template>
