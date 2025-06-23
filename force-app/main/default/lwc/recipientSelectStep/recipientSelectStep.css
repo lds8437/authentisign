@@ -1,3 +1,9 @@
-.slds-m-top_small {
+.slds-p-around_medium {
+    padding: 1rem;
+}
+
+.slds-text-color_error {
+    color: var(--slds-c-text-color-error, #c23934);
+    font-size: 0.875rem;
     margin-top: 0.5rem;
 }

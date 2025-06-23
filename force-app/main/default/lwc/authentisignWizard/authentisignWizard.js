@@ -1,17 +1,24 @@
 import { LightningElement, track, api } from 'lwc';
 export default class AuthentisignWizard extends LightningElement {
     @api recordId;
-    connectedCallback() {
-        if (this.recordId) {
-            console.log('Record ID:', this.recordId);
-        }
-    }
+    @api configId;
     @track currentStep = '1';
     @track documentId;
+    @track externalDocId;
+    @track error;
     @track recipients = [];
     @track fieldMappings = {};
     @track placedFields = [];
 
+    get isStep1() { return this.currentStep === '1'; }
+    get isStep2() { return this.currentStep === '2'; }
+    get isNextDisabled() {
+        if (this.currentStep === '1') {
+            return !this.documentId || !this.externalDocId;
+        }
+        // Other step conditions...
+        return false;
+    }
     get isBackDisabled() {
         return this.currentStep === '1';
     }
@@ -24,10 +31,10 @@ export default class AuthentisignWizard extends LightningElement {
         return this.currentStep !== '5';
     }
 
-    handleNext(event) {
-        const nextStep = parseInt(this.currentStep) + 1;
-        if (nextStep <= 5) {
-            this.currentStep = nextStep.toString();
+    handleNext() {
+        if (!this.isNextDisabled) {
+            this.currentStep = (parseInt(this.currentStep) + 1).toString();
+            this.error = null;
         }
     }
 
@@ -40,6 +47,8 @@ export default class AuthentisignWizard extends LightningElement {
 
     handleDocumentSelect(event) {
         this.documentId = event.detail.documentId;
+        this.externalDocId = event.detail.externalDocId;
+        this.error = this.documentId && this.externalDocId ? null : 'Please select or upload a valid document.';
     }
 
     handleRecipientSelect(event) {

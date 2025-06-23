@@ -4,41 +4,47 @@ public with sharing class AuthentisignApiService {
     public class DocumentResponse {
         public String documentId;
     }
-    
-    public static DocumentResponse uploadDocument(Blob fileData, String fileName) {
+
+    public static DocumentResponse uploadDocument(Blob documentData, String title) {
+        System.debug('AuthentisignApiService.uploadDocument: Endpoint=callout:AuthentisignAPI, Title=' + title);
         HttpRequest req = new HttpRequest();
-        req.setEndpoint('callout:' + NAMED_CREDENTIAL + '/documents');
+        req.setEndpoint('callout:AuthentisignAPI');
         req.setMethod('POST');
         req.setHeader('Content-Type', 'multipart/form-data; boundary=----WebKitFormBoundary');
-        String body = '------WebKitFormBoundary\r\n' +
-                      'Content-Disposition: form-data; name="file"; filename="' + fileName + '"\r\n' +
-                      'Content-Type: application/pdf\r\n\r\n' +
-                      EncodingUtil.base64Encode(fileData) + '\r\n' +
-                      '------WebKitFormBoundary--';
-        req.setBody(body);
-        
+        req.setBodyAsBlob(documentData);
         Http http = new Http();
-        HttpResponse res = http.send(req);
-        
-        if (res.getStatusCode() == 201) {
-            return (DocumentResponse) JSON.deserialize(res.getBody(), DocumentResponse.class);
-        } else {
-            throw new CalloutException('Error uploading document: ' + res.getBody());
+        try {
+            HttpResponse res = http.send(req);
+            System.debug('Response Status: ' + res.getStatusCode() + ', Body: ' + res.getBody());
+            if (res.getStatusCode() == 200) {
+                DocumentResponse response = (DocumentResponse) JSON.deserialize(res.getBody(), DocumentResponse.class);
+                return response;
+            } else {
+                throw new CalloutException('Failed to upload document: ' + res.getStatus());
+            }
+        } catch (Exception e) {
+            System.debug('Callout Error: ' + e.getMessage());
+            throw e;
         }
     }
     
-    public static void addRecipients(String documentId, List<AuthentisignWizardController.Recipient> recipients) {
+    public static void addRecipients(String configId, List<AuthentisignWizardController.Recipient> recipients) {
+        System.debug('AuthentisignApiService.addRecipients: ConfigId=' + configId + ', Recipients=' + JSON.serialize(recipients));
         HttpRequest req = new HttpRequest();
-        req.setEndpoint('callout:' + NAMED_CREDENTIAL + '/documents/' + documentId + '/recipients');
+        req.setEndpoint('callout:AuthentisignAPI/recipients');
         req.setMethod('POST');
         req.setHeader('Content-Type', 'application/json');
         req.setBody(JSON.serialize(recipients));
-        
         Http http = new Http();
-        HttpResponse res = http.send(req);
-        
-        if (res.getStatusCode() != 200) {
-            throw new CalloutException('Error adding recipients: ' + res.getBody());
+        try {
+            HttpResponse res = http.send(req);
+            System.debug('Response Status: ' + res.getStatusCode() + ', Body: ' + res.getBody());
+            if (res.getStatusCode() != 200) {
+                throw new CalloutException('Failed to add recipients: ' + res.getStatus() + ', Body: ' + res.getBody());
+            }
+        } catch (Exception e) {
+            System.debug('Callout Error: ' + e.getMessage());
+            throw e;
         }
     }
     
