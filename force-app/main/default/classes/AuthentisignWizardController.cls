@@ -1,22 +1,36 @@
 public with sharing class AuthentisignWizardController {
+    
     @AuraEnabled(cacheable=true)
     public static List<ContentDocument> getAvailableDocuments() {
-        return [SELECT Id, Title, FileType FROM ContentDocument WHERE FileType = 'PDF' ORDER BY Title LIMIT 100];
+        try {
+            return [
+                SELECT Id, Title, FileType 
+                FROM ContentDocument 
+                WHERE FileType = 'PDF' 
+                ORDER BY Title ASC 
+                LIMIT 100
+            ];
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving documents: ' + e.getMessage());
+        }
     }
 
     @AuraEnabled
     public static String uploadDocumentToAuthentisign(String contentDocumentId, String configId) {
         try {
-            // Get ContentVersion to access file data
-            ContentVersion cv = [SELECT Id, VersionData, Title FROM ContentVersion 
-                                WHERE ContentDocumentId = :contentDocumentId AND IsLatest = true LIMIT 1];
+            System.debug('uploadDocumentToAuthentisign: contentDocumentId=' + contentDocumentId + ', configId=' + configId);
+            ContentVersion cv = [
+                SELECT Id, VersionData, Title 
+                FROM ContentVersion 
+                WHERE ContentDocumentId = :contentDocumentId 
+                AND IsLatest = true 
+                LIMIT 1
+            ];
             
-            // Make API call to Authentisign
             AuthentisignApiService.DocumentResponse response = AuthentisignApiService.uploadDocument(
                 cv.VersionData, cv.Title
             );
             
-            // Update AuthentisignConfig__c
             AuthentisignConfig__c config = new AuthentisignConfig__c(
                 Id = configId,
                 DocumentId__c = contentDocumentId,
@@ -26,36 +40,80 @@ public with sharing class AuthentisignWizardController {
             
             return response.documentId;
         } catch (Exception e) {
-            throw new AuraHandledException('Error uploading document: ' + e.getMessage());
+            String errorMsg = 'Error uploading document: ' + e.getMessage();
+            if (e.getMessage().contains('named credential')) {
+                errorMsg += '. Please contact your administrator to verify the "AuthentisignAPI" Named Credential configuration.';
+            }
+            System.debug('uploadDocumentToAuthentisign Error: ' + errorMsg);
+            throw new AuraHandledException(errorMsg);
         }
     }
-    @AuraEnabled(cacheable=true)
-    public static List<SObject> getAvailableRecipients(String recordId) {
-        List<SObject> recipients = new List<SObject>();
-        // Example: Query Contacts related to an Account if recordId is provided
-        if (String.isNotBlank(recordId)) {
-            recipients.addAll([SELECT Id, Name, Email FROM Contact WHERE AccountId = :recordId LIMIT 50]);
+
+    @AuraEnabled
+    public static String checkForDuplicateDocument(String fileName, String configId) {
+        try {
+            List<ContentDocumentLink> existingLinks = [
+                SELECT ContentDocumentId 
+                FROM ContentDocumentLink 
+                WHERE ContentDocument.Title = :fileName 
+                AND ContentDocument.FileType = 'PDF'
+                AND LinkedEntityId = :configId
+                LIMIT 1
+            ];
+            return existingLinks.isEmpty() ? null : existingLinks[0].ContentDocumentId;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error checking for duplicate document: ' + e.getMessage());
         }
-        recipients.addAll([SELECT Id, Name, Email FROM Lead LIMIT 50]);
-        return recipients;
+    }
+
+    @AuraEnabled(cacheable=false) // Disabled caching for debugging
+    public static List<Recipient> getAvailableRecipients(String recordId, String objectType) {
+        try {
+            String query;
+            if (objectType == 'Contact') {
+                query = 'SELECT Id, Name, Email FROM Contact WHERE Email != null ORDER BY Name ASC LIMIT 50';
+            } else if (objectType == 'Lead') {
+                query = 'SELECT Id, Name, Email FROM Lead WHERE Email != null ORDER BY Name ASC LIMIT 50';
+            } else {
+                throw new AuraHandledException('Invalid object type: ' + objectType);
+            }
+            
+            System.debug('getAvailableRecipients: objectType=' + objectType + ', recordId=' + recordId + ', query=' + query);
+            List<SObject> records = Database.query(String.escapeSingleQuotes(query));
+            System.debug('getAvailableRecipients: records size=' + records.size());
+            System.debug('getAvailableRecipients: raw records=' + JSON.serialize(records));
+            
+            List<Recipient> recipients = new List<Recipient>();
+            for (SObject rec : records) {
+                Recipient r = new Recipient();
+                r.id = String.valueOf(rec.get('Id'));
+                r.name = String.valueOf(rec.get('Name'));
+                r.email = String.valueOf(rec.get('Email'));
+                recipients.add(r);
+                System.debug('Recipient: id=' + r.id + ', name=' + r.name + ', email=' + r.email);
+            }
+            System.debug('getAvailableRecipients: returning recipients size=' + recipients.size() + ', recipients=' + JSON.serialize(recipients));
+            return recipients;
+        } catch (Exception e) {
+            System.debug('getAvailableRecipients Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
+            throw new AuraHandledException('Error retrieving recipients: ' + e.getMessage());
+        }
     }
 
     @AuraEnabled
     public static void addRecipientsToAuthentisign(String configId, String recipientsJson) {
         try {
             List<Recipient> recipients = (List<Recipient>) JSON.deserialize(recipientsJson, List<Recipient>.class);
-            
-            // Get AuthentisignConfig__c
-            AuthentisignConfig__c config = [SELECT ExternalDocumentId__c FROM AuthentisignConfig__c WHERE Id = :configId LIMIT 1];
-            
-            // Make API call
-            AuthentisignApiService.addRecipients(config.ExternalDocumentId__c, recipients);
-            
-            // Update config
-            config.RecipientIds__c = JSON.serialize(recipients);
+            AuthentisignApiService.addRecipients(configId, recipients);
+            AuthentisignConfig__c config = new AuthentisignConfig__c(
+                Id = configId,
+                RecipientsJson__c = recipientsJson
+            );
             update config;
         } catch (Exception e) {
-            throw new AuraHandledException('Error adding recipients: ' + e.getMessage());
+            String errorMsg = 'Error adding recipients: ' + e.getMessage();
+            System.debug('addRecipientsToAuthentisign Error: ' + errorMsg);
+            throw new AuraHandledException(errorMsg);
         }
     }
 
@@ -144,9 +202,9 @@ public with sharing class AuthentisignWizardController {
     }
 
     public class Recipient {
-        public String id;
-        public String name;
-        public String email;
-        public String role;
+        @AuraEnabled public String id;
+        @AuraEnabled public String name;
+        @AuraEnabled public String email;
+        @AuraEnabled public String role;
     }
 }

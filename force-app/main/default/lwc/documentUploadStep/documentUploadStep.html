@@ -1,21 +1,50 @@
 <template>
-    <lightning-file-upload
-        label="Upload Document"
-        name="documentUpload"
-        accept=".pdf"
-        onuploadfinished={handleUploadFinished}>
-    </lightning-file-upload>
-    <lightning-record-picker
-        label="Or Select Existing Document"
-        object-api-name="ContentDocument"
-        onrecordselect={handleDocumentSelect}>
-    </lightning-record-picker>
-    <template if:true={selectedDocument}>
-        <div class="slds-m-top_medium">
-            <lightning-button
-                label="Preview"
-                onclick={handlePreview}>
-            </lightning-button>
+    <lightning-card title="Document Upload" icon-name="standard:document">
+        <div class="slds-p-around_medium modern-container">
+            <!-- Select Existing Document Section -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    label="Select Existing Document"
+                    options={documentOptions}
+                    value={selectedDocumentId}
+                    onchange={handleDocumentSelect}
+                    placeholder="Choose a PDF document"
+                    disabled={isDropdownDisabled}
+                    class="modern-input"
+                ></lightning-combobox>
+            </div>
+            
+            <!-- Upload Document Section -->
+            <div class="slds-m-bottom_medium">
+                <lightning-file-upload
+                    label="Upload New Document"
+                    accept=".pdf"
+                    onuploadfinished={handleFileUpload}
+                    disabled={isFileUploadDisabled}
+                    class="modern-input"
+                ></lightning-file-upload>
+                <template if:true={selectedFileName}>
+                    <div class="slds-m-top_small modern-file-name">
+                        Selected File: <strong>{selectedFileName}</strong>
+                    </div>
+                </template>
+            </div>
+            
+            <!-- Clear Selection Button -->
+            <div class="slds-text-align_right">
+                <lightning-button
+                    variant="neutral"
+                    label="Clear Selection"
+                    onclick={handleClearSelection}
+                    disabled={isClearDisabled}
+                    class="modern-button"
+                ></lightning-button>
+            </div>
+
+            <!-- Error Message -->
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-m-top_small modern-error">{error}</div>
+            </template>
         </div>
-    </template>
+    </lightning-card>
 </template>

@@ -1,17 +1,62 @@
 <template>
-    <lightning-record-picker
-        label="Select Contact or Lead"
-        object-api-name={objectApiName}
-        onrecordselect={handleRecipientSelect}>
-    </lightning-record-picker>
-    <template for:each={recipients} for:item="recipient">
-        <div key={recipient.id} class="slds-m-top_small">
-            <lightning-input
-                label="Role"
-                value={recipient.role}
-                onchange={handleRoleChange}
-                data-id={recipient.id}>
-            </lightning-input>
+    <lightning-card title="Select Recipients" icon-name="standard:people">
+        <div class="slds-p-around_medium">
+            <!-- Object Type Selection -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    label="Select Object Type"
+                    options={objectTypeOptions}
+                    value={objectType}
+                    onchange={handleObjectTypeChange}
+                    placeholder="Choose object type"
+                    aria-label="Select object type for recipients"
+                    class="slds-form-element"
+                ></lightning-combobox>
+            </div>
+
+            <!-- Recipient Selection -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    label="Select Recipients"
+                    options={recipientOptions}
+                    value={selectedRecipientIds}
+                    onchange={handleRecipientSelect}
+                    placeholder="Choose recipients"
+                    multiple
+                    disabled={isRecipientComboboxDisabled}
+                    aria-label="Select recipients for signing"
+                    class="slds-form-element"
+                ></lightning-combobox>
+            </div>
+
+            <!-- Selected Recipients Table -->
+            <template if:true={selectedRecipients}>
+                <lightning-datatable
+                    key-field="id"
+                    data={selectedRecipients}
+                    columns={columns}
+                    onrowaction={handleRowAction}
+                    oncellchange={handleCellChange}
+                    hide-checkbox-column
+                    class="slds-m-bottom_medium"
+                ></lightning-datatable>
+            </template>
+
+            <!-- Confirm Button -->
+            <div class="slds-m-top_medium slds-text-align_center">
+                <lightning-button
+                    variant="brand"
+                    label="Confirm Recipients"
+                    onclick={handleSaveRecipients}
+                    disabled={isConfirmDisabled}
+                    aria-label="Confirm selected recipients"
+                ></lightning-button>
+            </div>
+
+            <!-- Error Message -->
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-m-top_small">{error}</div>
+            </template>
         </div>
-    </template>
+    </lightning-card>
 </template>
