@@ -1,0 +1,27 @@
+name: Salesforce Scratch Org Build
+on:
+  push:
+    branches:
+      - feature/*
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Salesforce CLI
+        run: |
+          npm install @salesforce/cli --global
+          sf --version
+      - name: Authenticate Dev Hub
+        run: |
+          echo "${{ secrets.SF_AUTH_URL }}" > auth.txt
+          sf org login sfdx-url --sfdx-url-file auth.txt --alias DevHub
+      - name: Create Scratch Org
+        run: |
+          sf org create scratch --target-dev-hub lds8437949@agentforce.com --definition-file config/project-scratch-def.json --alias CIScratch --set-default --duration-days 1
+      - name: Push Source
+        run: |
+          sf project deploy start --target-org CIScratch
+      - name: Delete Scratch Org
+        run: |
+          sf org delete scratch --target-org CIScratch --no-prompt

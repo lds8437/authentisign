@@ -1,0 +1,16 @@
+<apex:page standardController="AuthentisignConfig__c" lightningStylesheets="true">
+    <apex:includeLightning></apex:includeLightning>
+    <div id="authentisignWizardContainer"></div>
+    <script>
+        $Lightning.use("c:AuthentisignApp", function() {
+            $Lightning.createComponent(
+                "c:authentisignWizard",
+                { recordId: "{!$CurrentPage.parameters.Id}" },
+                "authentisignWizardContainer",
+                function(cmp) {
+                    console.log('LWC initialized:', cmp);
+                }
+            );
+        });
+    </script>
+</apex:page>

@@ -1,0 +1,58 @@
+<template>
+    <lightning-card title="Authentisign Wizard">
+        <lightning-tabset active-tab-value={currentStep}>
+            <lightning-tab label="Upload Document" value="1">
+                <c-document-upload-step
+                    onnext={handleNext}
+                    ondocumentselect={handleDocumentSelect}>
+                </c-document-upload-step>
+            </lightning-tab>
+            <lightning-tab label="Select Recipients" value="2">
+                <c-recipient-select-step
+                    onnext={handleNext}
+                    onback={handleBack}
+                    onrecipientselect={handleRecipientSelect}>
+                </c-recipient-select-step>
+            </lightning-tab>
+            <lightning-tab label="Map Fields" value="3">
+                <c-field-mapping-step
+                    onnext={handleNext}
+                    onback={handleBack}
+                    onfieldmap={handleFieldMap}>
+                </c-field-mapping-step>
+            </lightning-tab>
+            <lightning-tab label="Place Fields" value="4">
+                <c-drag-and-drop-step
+                    onnext={handleNext}
+                    onback={handleBack}
+                    onfieldplace={handleFieldPlace}>
+                </c-drag-and-drop-step>
+            </lightning-tab>
+            <lightning-tab label="Preview and Send" value="5">
+                <c-preview-and-send-step
+                    onback={handleBack}
+                    onsend={handleSend}>
+                </c-preview-and-send-step>
+            </lightning-tab>
+        </lightning-tabset>
+        <div class="slds-m-top_medium">
+            <lightning-button
+                label="Back"
+                onclick={handleBack}
+                disabled={isBackDisabled}>
+            </lightning-button>
+            <lightning-button
+                label="Next"
+                variant="brand"
+                onclick={handleNext}
+                disabled={isNextDisabled}>
+            </lightning-button>
+            <lightning-button
+                label="Submit"
+                variant="success"
+                onclick={handleSend}
+                disabled={isSubmitDisabled}>
+            </lightning-button>
+        </div>
+    </lightning-card>
+</template>
