@@ -1,215 +1,178 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getAvailableDocuments from '@salesforce/apex/AuthentisignWizardController.getAvailableDocuments';
-import uploadDocumentToAuthentisign from '@salesforce/apex/AuthentisignWizardController.uploadDocumentToAuthentisign';
 import checkForDuplicateDocument from '@salesforce/apex/AuthentisignWizardController.checkForDuplicateDocument';
+import uploadDocumentToAuthentisign from '@salesforce/apex/AuthentisignWizardController.uploadDocumentToAuthentisign';
 
 export default class DocumentUploadStep extends LightningElement {
     @api configId;
     @track documents = [];
     @track selectedDocumentId;
-    @track selectedFileName;
-    @track uploadedDocumentId;
-    @track externalDocId;
+    @track isLoading = false;
     @track error;
 
     connectedCallback() {
-        console.log('documentUploadStep configId:', this.configId);
-        if (!this.configId) {
-            this.error = 'Configuration ID is missing. Please ensure the wizard is properly initialized.';
-            this.showToast('Error', this.error, 'error');
-        }
+        console.log('documentUploadStep: connectedCallback triggered, configId=', this.configId);
+        this.fetchDocuments();
+    }
+
+    fetchDocuments() {
+        console.log('fetchDocuments: Starting document fetch');
+        this.isLoading = true;
         getAvailableDocuments()
             .then(result => {
-                this.documents = result;
+                console.log('fetchDocuments: Raw result=', JSON.stringify(result));
+                this.documents = Array.isArray(result) ? result.map(doc => {
+                    const mappedDoc = {
+                        label: doc.Title || 'Untitled Document',
+                        value: doc.Id
+                    };
+                    console.log('fetchDocuments: Mapped document=', JSON.stringify(mappedDoc));
+                    return mappedDoc;
+                }) : [];
+                console.log('fetchDocuments: Documents set=', JSON.stringify(this.documents));
+                this.isLoading = false;
+                if (this.documents.length === 0) {
+                    this.error = 'No PDF documents found. Please upload a PDF.';
+                    this.showToast('Warning', this.error, 'warning');
+                }
+                // Force UI refresh
+                this.documents = [...this.documents];
             })
             .catch(error => {
                 this.error = error.body?.message || 'Error fetching documents';
-                console.error('Error in getAvailableDocuments:', error);
+                console.log('fetchDocuments error:', JSON.stringify(error));
                 this.showToast('Error', this.error, 'error');
-                this.dispatchEvent(new CustomEvent('documentselect', {
-                    detail: { documentId: null, externalDocId: null },
-                    bubbles: true,
-                    composed: true
-                }));
+                this.isLoading = false;
             });
     }
 
-    get documentOptions() {
-        return this.documents.map(doc => ({
-            label: doc.Title,
-            value: doc.Id
-        }));
-    }
-    
-    get isDropdownDisabled() {
-        return !!this.uploadedDocumentId || !!this.selectedFileName;
-    }
-    
-    get isFileUploadDisabled() {
-        return !!this.selectedDocumentId;
-    }
-    
-    get isClearDisabled() {
-        return !this.selectedDocumentId && !this.uploadedDocumentId && !this.selectedFileName;
-    }
-
-    handleDocumentSelect(event) {
+    handleDocumentChange(event) {
         this.selectedDocumentId = event.detail.value;
         this.error = null;
-        this.selectedFileName = null;
-        this.uploadedDocumentId = null;
-        if (this.selectedDocumentId) {
-            this.uploadExistingDocument();
-        } else {
-            this.externalDocId = null;
+        const selectedDoc = this.documents.find(doc => doc.value === this.selectedDocumentId);
+        if (selectedDoc) {
+            console.log('handleDocumentChange: Selected document=', JSON.stringify(selectedDoc));
             this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { documentId: null, externalDocId: null },
-                bubbles: true,
-                composed: true
-            }));
-        }
-    }
-
-    async handleFileUpload(event) {
-        const file = event.detail.files[0];
-        this.selectedFileName = file.name;
-        this.uploadedDocumentId = file.documentId;
-        this.selectedDocumentId = null;
-        this.error = null;
-
-        try {
-            const existingDocId = await checkForDuplicateDocument({ fileName: file.name });
-            if (existingDocId) {
-                this.error = `Duplicate document found: ${file.name}`;
-                this.showToast('Error', this.error, 'error');
-                console.error('Duplicate document found:', existingDocId);
-                this.selectedFileName = null;
-                this.uploadedDocumentId = null;
-                this.dispatchEvent(new CustomEvent('documentselect', {
-                    detail: { documentId: null, externalDocId: null },
-                    bubbles: true,
-                    composed: true
-                }));
-                return;
-            }
-            await this.uploadNewDocument();
-        } catch (error) {
-            this.error = error.body?.message || 'Error uploading new document';
-            this.showToast('Error', this.error, 'error');
-            console.error('Error in handleFileUpload:', error);
-            this.selectedFileName = null;
-            this.uploadedDocumentId = null;
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { documentId: null, externalDocId: null },
-                bubbles: true,
-                composed: true
+                detail: {
+                    documentId: this.selectedDocumentId,
+                    externalDocId: null,
+                    title: selectedDoc.label
+                }
             }));
         }
     }
 
     handleClearSelection() {
         this.selectedDocumentId = null;
-        this.selectedFileName = null;
-        this.uploadedDocumentId = null;
-        this.externalDocId = null;
         this.error = null;
+        console.log('handleClearSelection: Cleared document selection');
         this.dispatchEvent(new CustomEvent('documentselect', {
-            detail: { documentId: null, externalDocId: null },
-            bubbles: true,
-            composed: true
+            detail: {
+                documentId: null,
+                externalDocId: null,
+                title: null
+            }
         }));
     }
 
-    async uploadExistingDocument() {
-        if (!this.selectedDocumentId || !this.configId) {
-            this.error = `Missing document ID or configuration ID (documentId: ${this.selectedDocumentId}, configId: ${this.configId})`;
+    handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (file && file.type === 'application/pdf') {
+            this.isLoading = true;
+            console.log('handleFileUpload: File selected=', file.name);
+            checkForDuplicateDocument({ fileName: file.name, configId: this.configId })
+                .then(duplicateId => {
+                    if (duplicateId) {
+                        this.error = 'A document with this name already exists.';
+                        this.showToast('Error', this.error, 'error');
+                        this.isLoading = false;
+                    } else {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const base64Data = reader.result.split(',')[1];
+                            this.uploadFile(file.name, base64Data);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                })
+                .catch(error => {
+                    this.error = error.body?.message || 'Error checking for duplicate document';
+                    console.log('handleFileUpload error:', JSON.stringify(error));
+                    this.showToast('Error', this.error, 'error');
+                    this.isLoading = false;
+                });
+        } else {
+            this.error = 'Please upload a valid PDF file.';
             this.showToast('Error', this.error, 'error');
-            console.error('Invalid state in uploadExistingDocument:', {
-                selectedDocumentId: this.selectedDocumentId,
-                configId: this.configId
-            });
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { documentId: null, externalDocId: null },
-                bubbles: true,
-                composed: true
-            }));
-            return;
-        }
-
-        try {
-            const externalDocId = await uploadDocumentToAuthentisign({ 
-                contentDocumentId: this.selectedDocumentId, 
-                configId: this.configId 
-            });
-            this.externalDocId = externalDocId;
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { 
-                    documentId: this.selectedDocumentId, 
-                    externalDocId 
-                },
-                bubbles: true,
-                composed: true
-            }));
-            this.showToast('Success', 'Document selected successfully', 'success');
-        } catch (error) {
-            this.error = error.body?.message || 'Error uploading existing document';
-            this.showToast('Error', this.error, 'error');
-            console.error('Error in uploadExistingDocument:', error);
-            this.selectedDocumentId = null;
-            this.externalDocId = null;
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { documentId: null, externalDocId: null },
-                bubbles: true,
-                composed: true
-            }));
         }
     }
 
-    async uploadNewDocument() {
-        if (!this.uploadedDocumentId || !this.configId) {
-            this.error = `Missing document ID or configuration ID (documentId: ${this.uploadedDocumentId}, configId: ${this.configId})`;
-            this.showToast('Error', this.error, 'error');
-            console.error('Invalid state in uploadNewDocument:', {
-                uploadedDocumentId: this.uploadedDocumentId,
-                configId: this.configId
-            });
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { documentId: null, externalDocId: null },
-                bubbles: true,
-                composed: true
-            }));
-            return;
-        }
+    uploadFile(fileName, base64Data) {
+        console.log('uploadFile: Uploading file=', fileName);
+        const contentVersion = {
+            Title: fileName,
+            PathOnClient: fileName,
+            VersionData: base64Data,
+            FirstPublishLocationId: this.configId
+        };
 
-        try {
-            const externalDocId = await uploadDocumentToAuthentisign({ 
-                contentDocumentId: this.uploadedDocumentId, 
-                configId: this.configId 
-            });
-            this.externalDocId = externalDocId;
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { 
-                    documentId: this.uploadedDocumentId, 
-                    externalDocId 
-                },
-                bubbles: true,
-                composed: true
-            }));
-            this.showToast('Success', 'Document uploaded successfully', 'success');
-        } catch (error) {
-            this.error = error.body?.message || 'Error uploading new document';
+        const contentVersionJSON = JSON.stringify(contentVersion);
+        const blob = new Blob([contentVersionJSON], { type: 'application/json' });
+        
+        const formData = new FormData();
+        formData.append('entity_content', blob, fileName);
+
+        fetch('/services/data/v64.0/sobjects/ContentVersion', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Authorization': 'Bearer ' + this.getSessionId()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                console.log('uploadFile: ContentVersion created, id=', data.id);
+                uploadDocumentToAuthentisign({ contentDocumentId: data.id, configId: this.configId })
+                    .then(externalDocId => {
+                        this.selectedDocumentId = data.id;
+                        this.dispatchEvent(new CustomEvent('documentselect', {
+                            detail: {
+                                documentId: data.id,
+                                externalDocId: externalDocId,
+                                title: fileName
+                            }
+                        }));
+                        this.showToast('Success', 'Document uploaded successfully', 'success');
+                        this.isLoading = false;
+                        this.fetchDocuments(); // Refresh document list
+                    })
+                    .catch(error => {
+                        this.error = error.body?.message || 'Error uploading document to Authentisign';
+                        console.log('uploadFile error:', JSON.stringify(error));
+                        this.showToast('Error', this.error, 'error');
+                        this.isLoading = false;
+                    });
+            } else {
+                this.error = 'Failed to upload document';
+                this.showToast('Error', this.error, 'error');
+                this.isLoading = false;
+            }
+        })
+        .catch(error => {
+            this.error = 'Error uploading document: ' + error.message;
+            console.log('uploadFile error:', JSON.stringify(error));
             this.showToast('Error', this.error, 'error');
-            console.error('Error in uploadNewDocument:', error);
-            this.selectedFileName = null;
-            this.uploadedDocumentId = null;
-            this.externalDocId = null;
-            this.dispatchEvent(new CustomEvent('documentselect', {
-                detail: { documentId: null, externalDocId: null },
-                bubbles: true,
-                composed: true
-            }));
-        }
+            this.isLoading = false;
+        });
+    }
+
+    getSessionId() {
+        return document.cookie
+            .split('; ')
+            .find(row => row.startsWith('sid='))
+            ?.split('=')[1];
     }
 
     showToast(title, message, variant) {

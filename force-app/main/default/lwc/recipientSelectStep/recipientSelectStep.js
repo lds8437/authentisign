@@ -8,11 +8,26 @@ export default class RecipientSelectStep extends LightningElement {
     @api configId;
     @api documentId;
     @api externalDocId;
+    @api documentTitle;
     @track objectType = '';
     @track recipients = [];
     @track selectedRecipients = [];
     @track selectedRecipientIds = [];
     @track error;
+
+    connectedCallback() {
+        console.log('recipientSelectStep: connectedCallback, documentTitle=', this.documentTitle);
+    }
+
+    // Reactive setter to log documentTitle changes
+    set documentTitle(value) {
+        this._documentTitle = value;
+        console.log('recipientSelectStep: documentTitle updated=', value);
+    }
+
+    get documentTitle() {
+        return this._documentTitle;
+    }
 
     objectTypeOptions = [
         { label: 'Contact', value: 'Contact' },

@@ -3,14 +3,19 @@ public with sharing class AuthentisignWizardController {
     @AuraEnabled(cacheable=true)
     public static List<ContentDocument> getAvailableDocuments() {
         try {
-            return [
+            System.debug('getAvailableDocuments: Starting query for PDF ContentDocuments');
+            List<ContentDocument> documents = [
                 SELECT Id, Title, FileType 
                 FROM ContentDocument 
                 WHERE FileType = 'PDF' 
                 ORDER BY Title ASC 
                 LIMIT 100
             ];
+            System.debug('getAvailableDocuments: Found ' + documents.size() + ' documents');
+            System.debug('getAvailableDocuments: Documents=' + JSON.serialize(documents));
+            return documents;
         } catch (Exception e) {
+            System.debug('getAvailableDocuments Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
             throw new AuraHandledException('Error retrieving documents: ' + e.getMessage());
         }
     }
@@ -66,7 +71,7 @@ public with sharing class AuthentisignWizardController {
         }
     }
 
-    @AuraEnabled(cacheable=false) // Disabled caching for debugging
+    @AuraEnabled(cacheable=false)
     public static List<Recipient> getAvailableRecipients(String recordId, String objectType) {
         try {
             String query;
@@ -92,7 +97,7 @@ public with sharing class AuthentisignWizardController {
                 recipients.add(r);
                 System.debug('Recipient: id=' + r.id + ', name=' + r.name + ', email=' + r.email);
             }
-            System.debug('getAvailableRecipients: returning recipients size=' + recipients.size() + ', recipients=' + JSON.serialize(recipients));
+            System.debug('getAvailableRecipients: returning recipients size=' + records.size() + ', recipients=' + JSON.serialize(recipients));
             return recipients;
         } catch (Exception e) {
             System.debug('getAvailableRecipients Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
