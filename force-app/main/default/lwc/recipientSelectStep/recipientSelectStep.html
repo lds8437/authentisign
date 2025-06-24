@@ -1,6 +1,19 @@
 <template>
     <lightning-card title="Select Recipients" icon-name="standard:people">
+        <div slot="title">
+            <h2 class="slds-card__header-title">Select Recipients</h2>
+            <template if:true={documentTitle}>
+                <p class="slds-text-body_regular slds-m-top_xx-small">Document: {documentTitle}</p>
+            </template>
+        </div>
         <div class="slds-p-around_medium">
+            <!-- Document Name Above Recipient Selection -->
+            <template if:true={documentTitle}>
+                <div class="slds-m-bottom_small">
+                    <p class="slds-text-body_regular">Working with document: <strong>{documentTitle}</strong></p>
+                </div>
+            </template>
+
             <!-- Object Type Selection -->
             <div class="slds-m-bottom_medium">
                 <lightning-combobox
