@@ -123,6 +123,42 @@ public with sharing class AuthentisignWizardController {
     }
 
     @AuraEnabled(cacheable=true)
+    public static List<FieldDescriptor> getObjectFields(String objectName) {
+        try {
+            System.debug('getObjectFields: objectName=' + objectName);
+            if (String.isBlank(objectName)) {
+                throw new AuraHandledException('Object name is required');
+            }
+
+            Schema.SObjectType sObjectType = Schema.getGlobalDescribe().get(objectName);
+            if (sObjectType == null) {
+                throw new AuraHandledException('Invalid object name: ' + objectName);
+            }
+
+            Map<String, Schema.SObjectField> fieldMap = sObjectType.getDescribe().fields.getMap();
+            List<FieldDescriptor> fields = new List<FieldDescriptor>();
+
+            for (String fieldName : fieldMap.keySet()) {
+                Schema.DescribeFieldResult field = fieldMap.get(fieldName).getDescribe();
+                if (field.isAccessible()) {
+                    fields.add(new FieldDescriptor(
+                        field.getLabel(),
+                        field.getName()
+                    ));
+                }
+            }
+
+            fields.sort();
+            System.debug('getObjectFields: Found ' + fields.size() + ' fields for ' + objectName);
+            System.debug('getObjectFields: Fields=' + JSON.serialize(fields));
+            return fields;
+        } catch (Exception e) {
+            System.debug('getObjectFields Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
+            throw new AuraHandledException('Error retrieving fields: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
     public static Map<String, List<String>> getAvailableFields() {
         Map<String, List<String>> objectFields = new Map<String, List<String>>();
         List<String> objects = new List<String>{'Account', 'Contact', 'Lead'};
@@ -211,5 +247,20 @@ public with sharing class AuthentisignWizardController {
         @AuraEnabled public String name;
         @AuraEnabled public String email;
         @AuraEnabled public String role;
+    }
+
+    public class FieldDescriptor implements Comparable {
+        @AuraEnabled public String label;
+        @AuraEnabled public String apiName;
+
+        public FieldDescriptor(String label, String apiName) {
+            this.label = label;
+            this.apiName = apiName;
+        }
+
+        public Integer compareTo(Object compareTo) {
+            FieldDescriptor other = (FieldDescriptor) compareTo;
+            return this.label.compareTo(other.label);
+        }
     }
 }

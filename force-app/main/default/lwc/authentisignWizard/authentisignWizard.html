@@ -10,7 +10,7 @@
             <lightning-progress-indicator current-step={currentStep} variant="base" class="slds-m-bottom_medium">
                 <lightning-progress-step label="Upload Document" value="1"></lightning-progress-step>
                 <lightning-progress-step label="Select Recipients" value="2"></lightning-progress-step>
-                <lightning-progress-step label="Map Fields" value="3"></lightning-progress-step>
+                <lightning-progress-step label="Map Merge Fields" value="3"></lightning-progress-step>
                 <lightning-progress-step label="Place Fields" value="4"></lightning-progress-step>
                 <lightning-progress-step label="Review and Send" value="5"></lightning-progress-step>
             </lightning-progress-indicator>
@@ -37,13 +37,28 @@
                 ></c-recipient-select-step>
             </template>
 
-            <!-- Other Steps (Placeholder) -->
+            <!-- Step 3: Map Merge Fields -->
             <template if:true={isStep3}>
-                <div>Map Fields Step (Placeholder)</div>
+                <c-merge-field-mapping
+                    config-id={configId}
+                    record-id={recordId}
+                    onfieldmapping={handleFieldMapping}
+                    aria-label="Merge field mapping step"
+                ></c-merge-field-mapping>
             </template>
+
+            <!-- Step 4: Place Fields -->
             <template if:true={isStep4}>
-                <div>Place Fields Step (Placeholder)</div>
+                <c-place-fields-step
+                    config-id={configId}
+                    record-id={recordId}
+                    document-id={documentId}
+                    merge-fields={mergeFields}
+                    aria-label="Place fields step"
+                ></c-place-fields-step>
             </template>
+
+            <!-- Step 5: Review and Send (Placeholder) -->
             <template if:true={isStep5}>
                 <div>Review and Send Step (Placeholder)</div>
             </template>
@@ -62,6 +77,7 @@
                     variant="brand"
                     label="Next"
                     onclick={handleNext}
+                    disabled={isNextDisabled}
                     aria-label="Go to next step"
                 ></lightning-button>
             </div>
