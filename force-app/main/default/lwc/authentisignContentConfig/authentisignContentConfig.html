@@ -1,0 +1,17 @@
+<template>
+    <div class="slds-box slds-theme_shade">
+        <h2>Authentisign Signing Interface</h2>
+        <template if:true={error}>
+            <div class="slds-text-color_error">
+                Error: {error}
+            </div>
+        </template>
+        <template if:true={signingUrl}>
+            <p>Embedded Authentisign signing interface:</p>
+            <iframe src={signingUrl} width="100%" height="600px" style="border: none;"></iframe>
+        </template>
+        <template if:false={signingUrl}>
+            <p>Loading signing interface...</p>
+        </template>
+    </div>
+</template>
