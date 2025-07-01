@@ -12,7 +12,8 @@
                 <lightning-progress-step label="Select Recipients" value="2"></lightning-progress-step>
                 <lightning-progress-step label="Map Merge Fields" value="3"></lightning-progress-step>
                 <lightning-progress-step label="Place Fields" value="4"></lightning-progress-step>
-                <lightning-progress-step label="Review and Send" value="5"></lightning-progress-step>
+                <lightning-progress-step label="Authentisign Content Configuration" value="5"></lightning-progress-step>
+                <lightning-progress-step label="Review and Send" value="6"></lightning-progress-step>
             </lightning-progress-indicator>
 
             <!-- Step 1: Document Upload -->
@@ -58,8 +59,16 @@
                 ></c-place-fields-step>
             </template>
 
-            <!-- Step 5: Review and Send (Placeholder) -->
+            <!-- Step 5: Authentisign Content Configuration -->
             <template if:true={isStep5}>
+                <c-authentisign-content-config
+                    external-id={externalDocId} 
+                    aria-label="Authentisign content configuration step"
+                ></c-authentisign-content-config>
+            </template>
+
+            <!-- Step 6: Review and Send -->
+            <template if:true={isStep6}>
                 <div>Review and Send Step (Placeholder)</div>
             </template>
 
