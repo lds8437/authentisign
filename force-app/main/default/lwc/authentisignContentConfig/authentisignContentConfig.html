@@ -1,17 +1,33 @@
 <template>
-    <div class="slds-box slds-theme_shade">
-        <h2>Authentisign Signing Interface</h2>
-        <template if:true={error}>
-            <div class="slds-text-color_error">
-                Error: {error}
-            </div>
-        </template>
-        <template if:true={signingUrl}>
-            <p>Embedded Authentisign signing interface:</p>
-            <iframe src={signingUrl} width="100%" height="600px" style="border: none;"></iframe>
-        </template>
-        <template if:false={signingUrl}>
-            <p>Loading signing interface...</p>
-        </template>
-    </div>
+    <lightning-card title="Authentisign Content Configuration" icon-name="standard:document">
+        <div class="slds-p-around_medium">
+            <!-- Loading State -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading signing interface..." size="medium"></lightning-spinner>
+            </template>
+
+            <!-- Success State with Redirect Button -->
+            <template if:true={signingUrl}>
+                <p>The Authentisign signing interface is ready. Click below to proceed.</p>
+                <lightning-button
+                    variant="brand"
+                    label="Open Signing Interface"
+                    onclick={handleRedirect}
+                    class="slds-m-top_small"
+                    disabled={isUrlUnavailable}
+                ></lightning-button>
+            </template>
+
+            <!-- Error Message -->
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-m-top_small">{error}</div>
+                <lightning-button
+                    variant="brand"
+                    label="Retry"
+                    onclick={fetchSigningUrl}
+                    class="slds-m-top_small"
+                ></lightning-button>
+            </template>
+        </div>
+    </lightning-card>
 </template>

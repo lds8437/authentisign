@@ -19,7 +19,8 @@ export default class AuthentisignWizard extends LightningElement {
         { value: '2', label: 'Step 2: Select Recipients' },
         { value: '3', label: 'Step 3: Map Merge Fields' },
         { value: '4', label: 'Step 4: Place Fields' },
-        { value: '5', label: 'Step 5: Review and Send' }
+        { value: '5', label: 'Step 5: Authentisign Content Configuration' },
+        { value: '6', label: 'Step 6: Review and Send' }
     ];
 
     get currentStepLabel() {
@@ -27,34 +28,16 @@ export default class AuthentisignWizard extends LightningElement {
         return step ? step.label : 'Unknown Step';
     }
 
-    get isStep1() {
-        return this.currentStep === '1';
-    }
+    get isStep1() { return this.currentStep === '1'; }
+    get isStep2() { return this.currentStep === '2'; }
+    get isStep3() { return this.currentStep === '3'; }
+    get isStep4() { return this.currentStep === '4'; }
+    get isStep5() { return this.currentStep === '5'; }
+    get isStep6() { return this.currentStep === '6'; }
 
-    get isStep2() {
-        return this.currentStep === '2';
-    }
-
-    get isStep3() {
-        return this.currentStep === '3';
-    }
-
-    get isStep4() {
-        return this.currentStep === '4';
-    }
-
-    get isStep5() {
-        return this.currentStep === '5';
-    }
-
-    get isPreviousDisabled() {
-        return this.currentStep === '1';
-    }
-
+    get isPreviousDisabled() { return this.currentStep === '1'; }
     get isNextDisabled() {
-        if (this.currentStep === '1' && !this.documentId) {
-            return true;
-        }
+        if (this.currentStep === '1' && !this.documentId) return true;
         return false;
     }
 
@@ -108,7 +91,7 @@ export default class AuthentisignWizard extends LightningElement {
 
     handleNext() {
         const stepInt = parseInt(this.currentStep);
-        if (stepInt < 5) {
+        if (stepInt < 6) { // Updated max step to 6
             if (this.isNextDisabled) {
                 this.error = 'Please complete the current step before proceeding.';
                 this.showToast('Error', this.error, 'error');
