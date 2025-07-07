@@ -30,3 +30,32 @@
     background-color: #f5f5f5;
     font-weight: bold;
 }
+
+.preview-container ul,
+.preview-container ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+
+.preview-container li {
+    margin-bottom: 4px;
+}
+
+.preview-container h1,
+.preview-container h2,
+.preview-container h3 {
+    margin: 12px 0;
+    font-weight: bold;
+}
+
+.preview-container h1 {
+    font-size: 20px;
+}
+
+.preview-container h2 {
+    font-size: 18px;
+}
+
+.preview-container h3 {
+    font-size: 16px;
+}

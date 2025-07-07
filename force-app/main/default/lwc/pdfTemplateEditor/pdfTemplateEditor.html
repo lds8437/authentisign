@@ -32,10 +32,10 @@
                 </div>
             </div>
             <!-- Content Section -->
-            <template if:true={htmlOutput}>
+            <template if:true={showContent}>
                 <lightning-tabset variant="standard" active-tab-value={activeTab} ontabactive={handleTabChange}>
                     <lightning-tab label="Preview" value="preview">
-                        <div class="preview-container slds-p-around_medium" data-preview="true"></div>
+                        <div class="preview-container slds-p-around_medium" data-preview="true" lwc:dom="manual"></div>
                         <template if:false={htmlOutput}>
                             <p class="slds-p-around_medium">No content available for preview.</p>
                         </template>
@@ -56,7 +56,7 @@
                     </lightning-tab>
                 </lightning-tabset>
             </template>
-            <template if:false={htmlOutput}>
+            <template if:false={showContent}>
                 <p class="slds-p-around_medium">Upload a file to see the preview or source code.</p>
             </template>
         </div>

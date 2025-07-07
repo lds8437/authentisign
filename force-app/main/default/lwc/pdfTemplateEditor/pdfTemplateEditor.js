@@ -7,10 +7,11 @@ import PDFWORKER from '@salesforce/resourceUrl/pdfWorker';
 
 export default class PdfTemplateEditor extends LightningElement {
     @api recordId;
-    @track htmlOutput;
+    @track htmlOutput = '';
     @track selectedFileName;
     @track showIcon = true;
     @track activeTab = 'preview';
+    @track showContent = false;
     @track mammothInitialized = false;
     @track pdfJsInitialized = false;
 
@@ -59,10 +60,13 @@ export default class PdfTemplateEditor extends LightningElement {
             return;
         }
         this.selectedFileName = file.name;
+        this.showContent = true;
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
         console.log('File name:', file.name, 'Extracted file extension:', fileExtension);
         if (!['docx', 'pdf'].includes(fileExtension)) {
             this.showToast('Error', `Invalid file extension: ${fileExtension}`, 'error');
+            this.htmlOutput = '';
+            this.retryPreviewUpdate();
             return;
         }
         try {
@@ -78,12 +82,14 @@ export default class PdfTemplateEditor extends LightningElement {
             reader.onerror = () => {
                 console.error('Error reading file:', reader.error);
                 this.showToast('Error', `Failed to read file: ${reader.error.message}`, 'error');
+                this.htmlOutput = '';
+                this.retryPreviewUpdate();
             };
             reader.readAsDataURL(file);
         } catch (error) {
             console.error('Error processing file:', error);
             this.showToast('Error', `Failed to process file: ${error.message}`, 'error');
-            this.htmlOutput = `<p>Error processing file: ${error.message}</p>`;
+            this.htmlOutput = '';
             this.retryPreviewUpdate();
         }
     }
@@ -99,7 +105,7 @@ export default class PdfTemplateEditor extends LightningElement {
             } catch (error) {
                 console.error('Error converting Word document:', error);
                 this.showToast('Error', `Failed to convert Word document: ${error.message}`, 'error');
-                this.htmlOutput = `<p>Error converting Word document: ${error.message}</p>`;
+                this.htmlOutput = '';
             }
         } else if (fileExtension === 'pdf' && window.pdfjsLib) {
             try {
@@ -118,13 +124,14 @@ export default class PdfTemplateEditor extends LightningElement {
             } catch (error) {
                 console.error('Error converting PDF:', error);
                 this.showToast('Error', `Failed to convert PDF: ${error.message}`, 'error');
-                this.htmlOutput = `<p>Error converting PDF: ${error.message}</p>`;
+                this.htmlOutput = '';
             }
         } else {
             console.error('Unsupported file type or library not loaded:', fileExtension);
             this.showToast('Error', `Unsupported file type (${fileExtension || 'none'}) or library not loaded`, 'error');
-            this.htmlOutput = `<p>Unsupported file type or library not loaded: ${fileExtension || 'none'}</p>`;
+            this.htmlOutput = '';
         }
+        this.retryPreviewUpdate();
     }
 
     base64ToArrayBuffer(base64) {
@@ -145,8 +152,9 @@ export default class PdfTemplateEditor extends LightningElement {
     }
 
     handleHtmlChange(event) {
-        this.htmlOutput = event.target.value;
+        this.htmlOutput = event.target.value || '';
         console.log('handleHtmlChange: htmlOutput updated:', this.htmlOutput);
+        this.showContent = true;
         this.retryPreviewUpdate();
     }
 
@@ -168,20 +176,17 @@ export default class PdfTemplateEditor extends LightningElement {
         const tryUpdate = (remainingAttempts) => {
             const container = this.template.querySelector('div.preview-container[data-preview="true"]');
             console.log('retryPreviewUpdate: Attempting to find container, attempt:', attempts - remainingAttempts + 1, 'DOM available:', !!container);
-            if (container && this.htmlOutput) {
+            if (container) {
                 try {
                     // Clear container
-                    while (container.firstChild) {
-                        container.removeChild(container.firstChild);
+                    container.innerHTML = '';
+                    if (this.htmlOutput) {
+                        container.innerHTML = this.htmlOutput;
+                        console.log('retryPreviewUpdate: Preview updated with htmlOutput:', this.htmlOutput);
+                    } else {
+                        container.innerHTML = '<p>No content to display</p>';
+                        console.log('retryPreviewUpdate: Preview cleared (empty htmlOutput)');
                     }
-                    // Parse and append HTML
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(this.htmlOutput, 'text/html');
-                    const nodes = doc.body.childNodes;
-                    nodes.forEach(node => {
-                        container.appendChild(document.importNode(node, true));
-                    });
-                    console.log('retryPreviewUpdate: Preview updated with htmlOutput:', this.htmlOutput);
                 } catch (error) {
                     console.error('retryPreviewUpdate: Error rendering HTML:', error);
                     this.showToast('Error', 'Failed to render preview: ' + error.message, 'error');
@@ -191,7 +196,7 @@ export default class PdfTemplateEditor extends LightningElement {
                 setTimeout(() => tryUpdate(remainingAttempts - 1), delay);
             } else {
                 console.error('retryPreviewUpdate: Failed to find preview container after retries', { htmlOutput: this.htmlOutput });
-                this.showToast('Error', 'Unable to update preview: Container not found after retries', 'error');
+                this.showToast('Warning', 'Preview container not found; please try switching tabs or re-uploading.', 'warning');
                 console.log('DOM structure:', Array.from(this.template.querySelectorAll('div')).map(div => div.outerHTML));
             }
         };
