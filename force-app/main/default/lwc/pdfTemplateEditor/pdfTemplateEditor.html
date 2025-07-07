@@ -1,0 +1,64 @@
+<template>
+    <lightning-card title="File Upload and Conversion">
+        <lightning-messages></lightning-messages>
+        <div class="slds-p-around_medium">
+            <!-- Upload Section -->
+            <div class="slds-form-element">
+                <div class="slds-form-element__control slds-grid slds-gutters_small">
+                    <div class="slds-col">
+                        <lightning-icon 
+                            icon-name="utility:upload" 
+                            size="small" 
+                            class="slds-m-right_small" 
+                            if:true={showIcon}
+                            title="Upload a file"
+                        ></lightning-icon>
+                        <span class="slds-form-element__label">Upload PDF or Word Document</span>
+                    </div>
+                </div>
+                <div class="slds-form-element__control slds-m-top_small">
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        accept=".pdf,.docx" 
+                        class="slds-file-selector__input slds-input" 
+                        onchange={handleFileInputChange} 
+                    />
+                    <template if:true={selectedFileName}>
+                        <p class="slds-m-top_small slds-text-body_small">
+                            Selected file: {selectedFileName}
+                        </p>
+                    </template>
+                </div>
+            </div>
+            <!-- Content Section -->
+            <template if:true={htmlOutput}>
+                <lightning-tabset variant="standard" active-tab-value={activeTab} ontabactive={handleTabChange}>
+                    <lightning-tab label="Preview" value="preview">
+                        <div class="preview-container slds-p-around_medium" data-preview="true"></div>
+                        <template if:false={htmlOutput}>
+                            <p class="slds-p-around_medium">No content available for preview.</p>
+                        </template>
+                    </lightning-tab>
+                    <lightning-tab label="Source Code" value="source">
+                        <lightning-textarea
+                            label="Edit HTML Source"
+                            value={htmlOutput}
+                            onchange={handleHtmlChange}
+                            class="slds-m-around_medium"
+                        ></lightning-textarea>
+                        <lightning-button
+                            label="Apply Changes"
+                            variant="brand"
+                            onclick={handleApplyChanges}
+                            class="slds-m-around_small"
+                        ></lightning-button>
+                    </lightning-tab>
+                </lightning-tabset>
+            </template>
+            <template if:false={htmlOutput}>
+                <p class="slds-p-around_medium">Upload a file to see the preview or source code.</p>
+            </template>
+        </div>
+    </lightning-card>
+</template>
