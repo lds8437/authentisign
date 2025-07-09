@@ -19,6 +19,10 @@ export default class PdfTemplateEditor extends LightningElement {
         return '.pdf,.docx';
     }
 
+    get isSaveDisabled() {
+        return !this.showContent || !this.htmlOutput;
+    }
+
     async connectedCallback() {
         console.log('connectedCallback: Initializing Static Resources', { MAMMOTH, PDFJS, PDFWORKER });
         console.log('Document available:', !!document);
@@ -247,6 +251,19 @@ export default class PdfTemplateEditor extends LightningElement {
         console.log('handleTabChange: Switched to tab:', this.activeTab);
         if (this.activeTab === 'preview') {
             this.retryPreviewUpdate();
+        }
+    }
+
+    handleSaveTemplate() {
+        console.log('handleSaveTemplate: Saving template');
+        if (this.htmlOutput && this.selectedFileName) {
+            const fileExtension = this.selectedFileName.split('.').pop()?.toLowerCase();
+            const saveEvent = new CustomEvent('save', {
+                detail: { htmlOutput: this.htmlOutput, fileType: fileExtension }
+            });
+            this.dispatchEvent(saveEvent);
+        } else {
+            this.showToast('Error', 'No content or file to save', 'error');
         }
     }
 
