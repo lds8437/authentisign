@@ -1,0 +1,61 @@
+.preview-container {
+    font-family: 'Salesforce Sans', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #181818;
+}
+
+.preview-container p {
+    margin: 8px 0;
+}
+
+.preview-container strong {
+    font-weight: bold;
+}
+
+.preview-container table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+}
+
+.preview-container th,
+.preview-container td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.preview-container th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+.preview-container ul,
+.preview-container ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+
+.preview-container li {
+    margin-bottom: 4px;
+}
+
+.preview-container h1,
+.preview-container h2,
+.preview-container h3 {
+    margin: 12px 0;
+    font-weight: bold;
+}
+
+.preview-container h1 {
+    font-size: 20px;
+}
+
+.preview-container h2 {
+    font-size: 18px;
+}
+
+.preview-container h3 {
+    font-size: 16px;
+}

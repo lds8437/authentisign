@@ -1,49 +1,51 @@
 <template>
-    <lightning-card title="Document Upload" icon-name="standard:document">
-        <div class="slds-p-around_medium modern-container">
-            <!-- Select Existing Document Section -->
+    <lightning-card title="Upload or Select Document" icon-name="standard:document">
+        <div class="slds-p-around_medium">
+            <!-- Debug Output -->
+            <div class="slds-m-bottom_small">
+                <p class="slds-text-body_small">Documents Available: {documents.length}</p>
+            </div>
+
+            <!-- Document Selection -->
             <div class="slds-m-bottom_medium">
                 <lightning-combobox
                     label="Select Existing Document"
-                    options={documentOptions}
+                    options={documents}
                     value={selectedDocumentId}
-                    onchange={handleDocumentSelect}
-                    placeholder="Choose a PDF document"
-                    disabled={isDropdownDisabled}
-                    class="modern-input"
+                    onchange={handleDocumentChange}
+                    placeholder="Choose a document"
+                    aria-label="Select an existing PDF document"
+                    class="slds-form-element"
                 ></lightning-combobox>
-            </div>
-            
-            <!-- Upload Document Section -->
-            <div class="slds-m-bottom_medium">
-                <lightning-file-upload
-                    label="Upload New Document"
-                    accept=".pdf"
-                    onuploadfinished={handleFileUpload}
-                    disabled={isFileUploadDisabled}
-                    class="modern-input"
-                ></lightning-file-upload>
-                <template if:true={selectedFileName}>
-                    <div class="slds-m-top_small modern-file-name">
-                        Selected File: <strong>{selectedFileName}</strong>
-                    </div>
-                </template>
-            </div>
-            
-            <!-- Clear Selection Button -->
-            <div class="slds-text-align_right">
                 <lightning-button
                     variant="neutral"
                     label="Clear Selection"
                     onclick={handleClearSelection}
-                    disabled={isClearDisabled}
-                    class="modern-button"
+                    class="slds-m-top_small"
+                    aria-label="Clear selected document"
                 ></lightning-button>
             </div>
 
+            <!-- File Upload -->
+            <div class="slds-m-bottom_medium">
+                <lightning-input
+                    type="file"
+                    label="Upload New PDF"
+                    accept=".pdf"
+                    onchange={handleFileUpload}
+                    aria-label="Upload a new PDF document"
+                    class="slds-form-element"
+                ></lightning-input>
+            </div>
+
+            <!-- Loading Indicator -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading documents..."></lightning-spinner>
+            </template>
+
             <!-- Error Message -->
             <template if:true={error}>
-                <div class="slds-text-color_error slds-m-top_small modern-error">{error}</div>
+                <div class="slds-text-color_error slds-m-top_small">{error}</div>
             </template>
         </div>
     </lightning-card>

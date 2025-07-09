@@ -1,58 +1,100 @@
 <template>
-    <lightning-card title="Authentisign Wizard">
-        <lightning-tabset active-tab-value={currentStep}>
-            <lightning-tab label="Upload Document" value="1">
-                <c-document-upload-step
-                    onnext={handleNext}
-                    ondocumentselect={handleDocumentSelect}>
-                </c-document-upload-step>
-            </lightning-tab>
-            <lightning-tab label="Select Recipients" value="2">
-                <c-recipient-select-step
-                    onnext={handleNext}
-                    onback={handleBack}
-                    onrecipientselect={handleRecipientSelect}>
-                </c-recipient-select-step>
-            </lightning-tab>
-            <lightning-tab label="Map Fields" value="3">
-                <c-field-mapping-step
-                    onnext={handleNext}
-                    onback={handleBack}
-                    onfieldmap={handleFieldMap}>
-                </c-field-mapping-step>
-            </lightning-tab>
-            <lightning-tab label="Place Fields" value="4">
-                <c-drag-and-drop-step
-                    onnext={handleNext}
-                    onback={handleBack}
-                    onfieldplace={handleFieldPlace}>
-                </c-drag-and-drop-step>
-            </lightning-tab>
-            <lightning-tab label="Preview and Send" value="5">
-                <c-preview-and-send-step
-                    onback={handleBack}
-                    onsend={handleSend}>
-                </c-preview-and-send-step>
-            </lightning-tab>
-        </lightning-tabset>
-        <div class="slds-m-top_medium">
-            <lightning-button
-                label="Back"
-                onclick={handleBack}
-                disabled={isBackDisabled}>
-            </lightning-button>
-            <lightning-button
-                label="Next"
-                variant="brand"
-                onclick={handleNext}
-                disabled={isNextDisabled}>
-            </lightning-button>
-            <lightning-button
-                label="Submit"
-                variant="success"
-                onclick={handleSend}
-                disabled={isSubmitDisabled}>
-            </lightning-button>
+    <lightning-card title="Authentisign Wizard" icon-name="standard:process">
+        <div class="slds-p-around_medium">
+            <!-- Current Step Label -->
+            <div class="slds-m-bottom_small">
+                <h2 class="slds-text-heading_small">{currentStepLabel}</h2>
+            </div>
+
+            <!-- Progress Indicator -->
+            <lightning-progress-indicator current-step={currentStep} variant="base" class="slds-m-bottom_medium">
+                <lightning-progress-step label="Upload Document" value="1"></lightning-progress-step>
+                <lightning-progress-step label="Select Recipients" value="2"></lightning-progress-step>
+                <lightning-progress-step label="Map Merge Fields" value="3"></lightning-progress-step>
+                <lightning-progress-step label="Place Fields" value="4"></lightning-progress-step>
+                <lightning-progress-step label="Authentisign Content Configuration" value="5"></lightning-progress-step>
+                <lightning-progress-step label="Review and Send" value="6"></lightning-progress-step>
+            </lightning-progress-indicator>
+
+            <!-- Step 1: Document Upload -->
+            <template if:true={isStep1}>
+                <c-document-upload-step 
+                    config-id={configId} 
+                    ondocumentselect={handleDocumentSelect}
+                    aria-label="Document upload step"
+                ></c-document-upload-step>
+            </template>
+
+            <!-- Step 2: Select Recipients -->
+            <template if:true={isStep2}>
+                <c-recipient-select-step 
+                    config-id={configId} 
+                    record-id={recordId}
+                    document-id={documentId}
+                    external-doc-id={externalDocId}
+                    document-title={documentTitle}
+                    onrecipientselect={handleRecipientSelect}
+                    aria-label="Recipient selection step"
+                ></c-recipient-select-step>
+            </template>
+
+            <!-- Step 3: Map Merge Fields -->
+            <template if:true={isStep3}>
+                <c-merge-field-mapping
+                    config-id={configId}
+                    record-id={recordId}
+                    onfieldmapping={handleFieldMapping}
+                    aria-label="Merge field mapping step"
+                ></c-merge-field-mapping>
+            </template>
+
+            <!-- Step 4: Place Fields -->
+            <template if:true={isStep4}>
+                <c-place-fields-step
+                    config-id={configId}
+                    record-id={recordId}
+                    document-id={documentId}
+                    merge-fields={mergeFields}
+                    aria-label="Place fields step"
+                ></c-place-fields-step>
+            </template>
+
+            <!-- Step 5: Authentisign Content Configuration -->
+            <template if:true={isStep5}>
+                <c-authentisign-content-config
+                    external-id={externalDocId} 
+                    aria-label="Authentisign content configuration step"
+                ></c-authentisign-content-config>
+            </template>
+
+            <!-- Step 6: Review and Send -->
+            <template if:true={isStep6}>
+                <div>Review and Send Step (Placeholder)</div>
+            </template>
+
+            <!-- Navigation Buttons -->
+            <div class="slds-m-top_large slds-text-align_right">
+                <lightning-button
+                    variant="neutral"
+                    label="Previous"
+                    onclick={handlePrevious}
+                    disabled={isPreviousDisabled}
+                    class="slds-m-right_small"
+                    aria-label="Go to previous step"
+                ></lightning-button>
+                <lightning-button
+                    variant="brand"
+                    label="Next"
+                    onclick={handleNext}
+                    disabled={isNextDisabled}
+                    aria-label="Go to next step"
+                ></lightning-button>
+            </div>
+
+            <!-- Error Message -->
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-m-top_small">{error}</div>
+            </template>
         </div>
     </lightning-card>
 </template>

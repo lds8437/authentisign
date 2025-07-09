@@ -3,14 +3,19 @@ public with sharing class AuthentisignWizardController {
     @AuraEnabled(cacheable=true)
     public static List<ContentDocument> getAvailableDocuments() {
         try {
-            return [
+            System.debug('getAvailableDocuments: Starting query for PDF ContentDocuments');
+            List<ContentDocument> documents = [
                 SELECT Id, Title, FileType 
                 FROM ContentDocument 
                 WHERE FileType = 'PDF' 
                 ORDER BY Title ASC 
                 LIMIT 100
             ];
+            System.debug('getAvailableDocuments: Found ' + documents.size() + ' documents');
+            System.debug('getAvailableDocuments: Documents=' + JSON.serialize(documents));
+            return documents;
         } catch (Exception e) {
+            System.debug('getAvailableDocuments Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
             throw new AuraHandledException('Error retrieving documents: ' + e.getMessage());
         }
     }
@@ -66,7 +71,7 @@ public with sharing class AuthentisignWizardController {
         }
     }
 
-    @AuraEnabled(cacheable=false) // Disabled caching for debugging
+    @AuraEnabled(cacheable=false)
     public static List<Recipient> getAvailableRecipients(String recordId, String objectType) {
         try {
             String query;
@@ -92,7 +97,7 @@ public with sharing class AuthentisignWizardController {
                 recipients.add(r);
                 System.debug('Recipient: id=' + r.id + ', name=' + r.name + ', email=' + r.email);
             }
-            System.debug('getAvailableRecipients: returning recipients size=' + recipients.size() + ', recipients=' + JSON.serialize(recipients));
+            System.debug('getAvailableRecipients: returning recipients size=' + records.size() + ', recipients=' + JSON.serialize(recipients));
             return recipients;
         } catch (Exception e) {
             System.debug('getAvailableRecipients Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
@@ -114,6 +119,42 @@ public with sharing class AuthentisignWizardController {
             String errorMsg = 'Error adding recipients: ' + e.getMessage();
             System.debug('addRecipientsToAuthentisign Error: ' + errorMsg);
             throw new AuraHandledException(errorMsg);
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<FieldDescriptor> getObjectFields(String objectName) {
+        try {
+            System.debug('getObjectFields: objectName=' + objectName);
+            if (String.isBlank(objectName)) {
+                throw new AuraHandledException('Object name is required');
+            }
+
+            Schema.SObjectType sObjectType = Schema.getGlobalDescribe().get(objectName);
+            if (sObjectType == null) {
+                throw new AuraHandledException('Invalid object name: ' + objectName);
+            }
+
+            Map<String, Schema.SObjectField> fieldMap = sObjectType.getDescribe().fields.getMap();
+            List<FieldDescriptor> fields = new List<FieldDescriptor>();
+
+            for (String fieldName : fieldMap.keySet()) {
+                Schema.DescribeFieldResult field = fieldMap.get(fieldName).getDescribe();
+                if (field.isAccessible()) {
+                    fields.add(new FieldDescriptor(
+                        field.getLabel(),
+                        field.getName()
+                    ));
+                }
+            }
+
+            fields.sort();
+            System.debug('getObjectFields: Found ' + fields.size() + ' fields for ' + objectName);
+            System.debug('getObjectFields: Fields=' + JSON.serialize(fields));
+            return fields;
+        } catch (Exception e) {
+            System.debug('getObjectFields Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
+            throw new AuraHandledException('Error retrieving fields: ' + e.getMessage());
         }
     }
 
@@ -206,5 +247,20 @@ public with sharing class AuthentisignWizardController {
         @AuraEnabled public String name;
         @AuraEnabled public String email;
         @AuraEnabled public String role;
+    }
+
+    public class FieldDescriptor implements Comparable {
+        @AuraEnabled public String label;
+        @AuraEnabled public String apiName;
+
+        public FieldDescriptor(String label, String apiName) {
+            this.label = label;
+            this.apiName = apiName;
+        }
+
+        public Integer compareTo(Object compareTo) {
+            FieldDescriptor other = (FieldDescriptor) compareTo;
+            return this.label.compareTo(other.label);
+        }
     }
 }

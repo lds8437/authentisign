@@ -1,0 +1,24 @@
+<template>
+  <lightning-card title="Template Builder" icon-name="custom:custom63">
+    <div class="slds-p-around_medium">
+      <lightning-input label="Template Name" value={templateName} onchange={handleNameChange}></lightning-input>
+      <lightning-input type="file" label="Upload Document (PDF / DOCX)" onchange={handleFileUpload}></lightning-input>
+      <lightning-combobox label="Select Object" options={objectOptions} value={selectedObject} onchange={handleObjectChange}></lightning-combobox>
+      <lightning-combobox label="Insert Merge Field" options={fieldOptions} value={selectedField}
+        onchange={handleMergeFieldInsert} disabled={isFieldDisabled}>></lightning-combobox>
+      <lightning-combobox label="Load Existing Template" options={templateOptions} value={selectedTemplateId}
+        onchange={handleTemplateSelect}></lightning-combobox>
+      <lightning-input label="Record ID for Preview" value={previewRecordId} onchange={handleRecordIdChange}></lightning-input>
+      <lightning-button label="Generate Preview" onclick={generatePreview} class="slds-m-top_small"></lightning-button>
+      <div id="editorContainer" class="slds-m-top_medium">
+        <textarea id="tinymceEditor"></textarea>
+      </div>
+      <div class="slds-m-top_medium">
+        <lightning-button variant="brand" label="Save Template" onclick={saveTemplate}></lightning-button>
+      </div>
+      <template if:true={previewHtml}>
+        <div class="slds-box slds-m-top_medium" lwc:dom="manual" id="previewContainer"></div>
+      </template>
+    </div>
+  </lightning-card>
+</template>
