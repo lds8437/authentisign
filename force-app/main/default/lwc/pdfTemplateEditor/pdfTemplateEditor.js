@@ -21,33 +21,73 @@ export default class PdfTemplateEditor extends LightningElement {
 
     async connectedCallback() {
         console.log('connectedCallback: Initializing Static Resources', { MAMMOTH, PDFJS, PDFWORKER });
+        console.log('Document available:', !!document);
         if (!this.mammothInitialized) {
             this.mammothInitialized = true;
             try {
-                await loadScript(this, MAMMOTH);
+                console.log('Loading Mammoth.js from:', MAMMOTH);
+                await loadScript(this, MAMMOTH).catch(err => {
+                    throw new Error('loadScript for MAMMOTH failed: ' + (err?.message || 'Unknown error') + ' (Stack: ' + (err?.stack || 'no stack') + ')');
+                });
                 console.log('Mammoth.js loaded successfully, window.mammoth:', !!window.mammoth);
                 if (!window.mammoth) {
                     throw new Error('Mammoth.js not initialized');
                 }
             } catch (error) {
-                console.error('Error loading Mammoth.js:', error);
-                this.showToast('Error', 'Failed to load Mammoth.js library: ' + error.message, 'error');
+                console.error('Error loading Mammoth.js:', error.message, 'Stack:', error.stack);
+                this.showToast('Error', 'Failed to load Mammoth.js library: ' + (error?.message || 'Unknown error'), 'error');
             }
         }
         if (!this.pdfJsInitialized) {
             this.pdfJsInitialized = true;
             try {
-                await loadScript(this, PDFJS);
-                console.log('PDF.js loaded successfully, window.pdfjsLib:', !!window.pdfjsLib);
-                if (!window.pdfjsLib) {
-                    throw new Error('PDF.js not initialized');
+                console.log('Loading PDF.js from:', PDFJS);
+                console.log('Testing PDFJS resource availability...');
+                const response = await fetch(PDFJS + '?t=' + Date.now());
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch PDFJS resource: HTTP ${response.status} ${response.statusText}`);
                 }
-                await loadScript(this, PDFWORKER);
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFWORKER;
-                console.log('PDF worker loaded successfully');
+                const content = await response.text();
+                console.log('PDFJS resource content preview:', content.slice(0, 100), 'length:', content.length);
+                console.log('Attempting to load PDF.js script...');
+                await loadScript(this, PDFJS + '?t=' + Date.now()).catch(err => {
+                    throw new Error('loadScript for PDFJS failed: ' + (err?.message || 'Unknown error') + ' (Stack: ' + (err?.stack || 'no stack') + ')');
+                });
+                console.log('PDF.js loaded successfully, window.pdfjsLib:', !!window.pdfjsLib, 'version:', window.pdfjsLib?.version || 'unknown');
+                console.log('PDF.js properties:', Object.keys(window.pdfjsLib || {}));
+                console.log('PDF.js getDocument available:', !!window.pdfjsLib?.getDocument);
+                console.log('PDF.js full object:', window.pdfjsLib);
+                if (!window.pdfjsLib || !window.pdfjsLib.getDocument) {
+                    throw new Error('PDF.js or getDocument not initialized');
+                }
+                console.log('Attempting to load PDF worker from:', PDFWORKER);
+                try {
+                    const workerResponse = await fetch(PDFWORKER + '?t=' + Date.now());
+                    if (!workerResponse.ok) {
+                        throw new Error(`Failed to fetch PDFWORKER resource: HTTP ${workerResponse.status} ${workerResponse.statusText}`);
+                    }
+                    const workerContent = await workerResponse.text();
+                    console.log('PDFWORKER resource content preview:', workerContent.slice(0, 100), 'length:', workerContent.length);
+                    await loadScript(this, PDFWORKER + '?t=' + Date.now());
+                    console.log('PDF worker loaded successfully');
+                    if (window.pdfjsLib.GlobalWorkerOptions) {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFWORKER;
+                        console.log('PDF worker configured with workerSrc:', PDFWORKER);
+                    } else {
+                        console.warn('GlobalWorkerOptions not available, proceeding without worker');
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+                        console.log('PDF worker disabled with empty workerSrc to avoid structuredClone issues');
+                    }
+                } catch (workerError) {
+                    console.warn('Failed to load PDF worker, proceeding without worker:', workerError.message, 'Stack:', workerError.stack);
+                    if (window.pdfjsLib.GlobalWorkerOptions) {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+                        console.log('PDF worker disabled with empty workerSrc due to load failure');
+                    }
+                }
             } catch (error) {
-                console.error('Error loading PDF.js:', error);
-                this.showToast('Error', 'Failed to load PDF.js library: ' + error.message, 'error');
+                console.error('Error loading PDF.js:', error.message, 'Stack:', error.stack);
+                this.showToast('Error', 'Failed to load PDF.js library: ' + (error?.message || 'Unknown error'), 'error');
             }
         }
     }
@@ -64,7 +104,7 @@ export default class PdfTemplateEditor extends LightningElement {
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
         console.log('File name:', file.name, 'Extracted file extension:', fileExtension);
         if (!['docx', 'pdf'].includes(fileExtension)) {
-            this.showToast('Error', `Invalid file extension: ${fileExtension}`, 'error');
+            this.showToast('Error', 'Invalid file extension: ' + fileExtension, 'error');
             this.htmlOutput = '';
             this.retryPreviewUpdate();
             return;
@@ -81,14 +121,14 @@ export default class PdfTemplateEditor extends LightningElement {
             };
             reader.onerror = () => {
                 console.error('Error reading file:', reader.error);
-                this.showToast('Error', `Failed to read file: ${reader.error.message}`, 'error');
+                this.showToast('Error', 'Failed to read file: ' + (reader.error?.message || 'Unknown error'), 'error');
                 this.htmlOutput = '';
                 this.retryPreviewUpdate();
             };
             reader.readAsDataURL(file);
         } catch (error) {
-            console.error('Error processing file:', error);
-            this.showToast('Error', `Failed to process file: ${error.message}`, 'error');
+            console.error('Error processing file:', error.message, 'Stack:', error.stack);
+            this.showToast('Error', 'Failed to process file: ' + (error?.message || 'Unknown error'), 'error');
             this.htmlOutput = '';
             this.retryPreviewUpdate();
         }
@@ -96,40 +136,78 @@ export default class PdfTemplateEditor extends LightningElement {
 
     async convertToHtml(fileContent, fileExtension) {
         console.log('convertToHtml: Starting conversion for', fileExtension);
-        console.log('Library availability:', { hasMammoth: !!window.mammoth, hasPdfjsLib: !!window.pdfjsLib });
+        console.log('Library availability:', { hasMammoth: !!window.mammoth, hasPdfjsLib: !!window.pdfjsLib, hasGetDocument: !!window.pdfjsLib?.getDocument });
         if (fileExtension === 'docx' && window.mammoth) {
             try {
                 const result = await window.mammoth.convertToHtml({ arrayBuffer: this.base64ToArrayBuffer(fileContent) });
                 this.htmlOutput = result.value || '<p>No content extracted from Word document</p>';
                 console.log('Word document converted, htmlOutput:', this.htmlOutput);
             } catch (error) {
-                console.error('Error converting Word document:', error);
-                this.showToast('Error', `Failed to convert Word document: ${error.message}`, 'error');
+                console.error('Error converting Word document:', error.message, 'Stack:', error.stack);
+                this.showToast('Error', 'Failed to convert Word document: ' + (error?.message || 'Unknown error'), 'error');
                 this.htmlOutput = '';
             }
-        } else if (fileExtension === 'pdf' && window.pdfjsLib) {
+        } else if (fileExtension === 'pdf' && window.pdfjsLib && window.pdfjsLib.getDocument) {
             try {
-                const pdf = await window.pdfjsLib.getDocument({ data: this.base64ToArrayBuffer(fileContent) }).promise;
-                console.log('PDF loaded, pages:', pdf.numPages);
-                let htmlContent = '';
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    textContent.items.forEach(item => {
-                        htmlContent += `<p>${item.str}</p>`;
-                    });
+                console.log('Starting PDF processing, workerSrc:', window.pdfjsLib.GlobalWorkerOptions?.workerSrc || 'disabled');
+                console.log('Worker options:', window.pdfjsLib.GlobalWorkerOptions || 'not available');
+                console.log('Document available for PDF.js:', !!document);
+                const arrayBuffer = this.base64ToArrayBuffer(fileContent);
+                console.log('ArrayBuffer size:', arrayBuffer.byteLength);
+                if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+                    throw new Error('Invalid or empty PDF data');
                 }
-                this.htmlOutput = htmlContent || '<p>No content extracted from PDF</p>';
+                console.log('Loading PDF document...');
+                console.log('Before getDocument call:', window.pdfjsLib.getDocument.toString());
+                const pdf = await window.pdfjsLib.getDocument({
+                    data: arrayBuffer,
+                    disableFontFace: true,
+                    disableRange: true,
+                    disableStream: true,
+                    disableAutoFetch: true,
+                    enableXfa: false,
+                    ownerDocument: document
+                }).promise.catch(err => {
+                    throw new Error('getDocument failed: ' + (err?.message || 'Unknown error') + ' (Stack: ' + (err?.stack || 'no stack') + ')');
+                });
+                console.log('PDF loaded, pages:', pdf.numPages);
+                console.log('PDF document object:', pdf);
+                let page;
+                try {
+                    page = await pdf.getPage(1);
+                    console.log('Page 1 loaded');
+                } catch (pageError) {
+                    throw new Error('getPage failed: ' + (pageError?.message || 'Unknown error') + ' (Stack: ' + (pageError?.stack || 'no stack') + ')');
+                }
+                let textContent;
+                try {
+                    textContent = await page.getTextContent();
+                    console.log('Page 1 text items:', textContent.items.length);
+                    console.log('TextContent object:', textContent);
+                    console.log('Text items:', textContent.items);
+                } catch (textError) {
+                    throw new Error('getTextContent failed: ' + (textError?.message || 'Unknown error') + ' (Stack: ' + (textError?.stack || 'no stack') + ')');
+                }
+                const htmlContent = textContent.items.map(item => {
+                    const text = item.str
+                        .replace(/&/g, '&')
+                        .replace(/</g, '<')
+                        .replace(/>/g, '>')
+                        .replace(/"/g, '"')
+                        .replace(/'/g, '');
+                    return '<p>' + text + '</p>';
+                }).join('');
+                this.htmlOutput = '<div><h2>Page 1</h2>' + (htmlContent || '<p>No content extracted from PDF</p>') + '</div>';
                 console.log('PDF converted, htmlOutput:', this.htmlOutput);
             } catch (error) {
-                console.error('Error converting PDF:', error);
-                this.showToast('Error', `Failed to convert PDF: ${error.message}`, 'error');
-                this.htmlOutput = '';
+                console.error('Error converting PDF:', error.message, 'Stack:', error.stack);
+                this.showToast('Error', 'Failed to convert PDF: ' + (error?.message || 'Unknown error'), 'error');
+                this.htmlOutput = '<p>Failed to convert PDF</p>';
             }
         } else {
-            console.error('Unsupported file type or library not loaded:', fileExtension);
-            this.showToast('Error', `Unsupported file type (${fileExtension || 'none'}) or library not loaded`, 'error');
-            this.htmlOutput = '';
+            console.error('Unsupported file type or PDF.js not loaded:', fileExtension);
+            this.showToast('Error', 'Unsupported file type (' + (fileExtension || 'none') + ') or PDF.js not loaded', 'error');
+            this.htmlOutput = '<p>Unsupported file type or PDF.js not loaded</p>';
         }
         this.retryPreviewUpdate();
     }
@@ -142,11 +220,11 @@ export default class PdfTemplateEditor extends LightningElement {
             for (let i = 0; i < len; i++) {
                 bytes[i] = binary.charCodeAt(i);
             }
-            console.log('base64ToArrayBuffer: Converted base64 to ArrayBuffer');
+            console.log('base64ToArrayBuffer: Converted base64 to ArrayBuffer, size:', len);
             return bytes.buffer;
         } catch (error) {
-            console.error('Error in base64ToArrayBuffer:', error);
-            this.showToast('Error', `Failed to process file content: ${error.message}`, 'error');
+            console.error('Error in base64ToArrayBuffer:', error.message, 'Stack:', error.stack);
+            this.showToast('Error', 'Failed to process file content: ' + (error?.message || 'Unknown error'), 'error');
             throw error;
         }
     }
@@ -178,7 +256,6 @@ export default class PdfTemplateEditor extends LightningElement {
             console.log('retryPreviewUpdate: Attempting to find container, attempt:', attempts - remainingAttempts + 1, 'DOM available:', !!container);
             if (container) {
                 try {
-                    // Clear container
                     container.innerHTML = '';
                     if (this.htmlOutput) {
                         container.innerHTML = this.htmlOutput;
@@ -188,8 +265,8 @@ export default class PdfTemplateEditor extends LightningElement {
                         console.log('retryPreviewUpdate: Preview cleared (empty htmlOutput)');
                     }
                 } catch (error) {
-                    console.error('retryPreviewUpdate: Error rendering HTML:', error);
-                    this.showToast('Error', 'Failed to render preview: ' + error.message, 'error');
+                    console.error('Error rendering HTML:', error.message, 'Stack:', error.stack);
+                    this.showToast('Error', 'Failed to render preview: ' + (error?.message || 'Unknown error'), 'error');
                 }
             } else if (remainingAttempts > 0) {
                 console.warn('retryPreviewUpdate: Container not found, retrying...', { remainingAttempts, htmlOutput: this.htmlOutput });
