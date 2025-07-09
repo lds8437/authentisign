@@ -1,10 +1,19 @@
 public with sharing class AuthentisignIntegrationController {
     @AuraEnabled(cacheable=false)
     public static String getSigningUrl(String signingId, String externalId) {
-        // Base URL and version
-        String baseUrl = 'https://api.authentisign.com/api';
-        String version = 'v1';
-        
+        // Query Custom Metadata for configuration
+        Authentisign_Config__mdt config = [
+            SELECT JWT_Token__c, Base_URL__c, Version__c
+            FROM Authentisign_Config__mdt
+            WHERE DeveloperName = 'Default_Config'
+            LIMIT 1
+        ];
+
+        // Use config values
+        String baseUrl = config.Base_URL__c != null ? config.Base_URL__c : 'https://api.authentisign.com';
+        String version = config.Version__c != null ? config.Version__c : 'v1';
+        String jwtToken = config.JWT_Token__c;
+
         // Construct redirect URL using URL.getOrgDomainUrl()
         String orgDomain = URL.getOrgDomainUrl().toExternalForm();
         String redirectUrl = orgDomain + '/apex/AuthentisignReturnPage';
@@ -17,23 +26,16 @@ public with sharing class AuthentisignIntegrationController {
         HttpRequest request = new HttpRequest();
         request.setEndpoint(endpoint);
         request.setMethod('GET');
-        // Use the working JWT token from Authentisign settings
-        String jwtToken = 'eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIyODNjZjIyNC0zZmJhLTQ1OWItYTdiMy0wOTk1OGUyMGY0MTciLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zeXN0ZW0iOiJFeHRlcm5hbCIsImFjdG9ydCI6ImNkNTE1MGFmLTE5NjUtNDdjNS1hZDJjLTRiNzk1NDY5MzdjMyIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL3NpZCI6IjM3MDkyNmFkLTMzZTQtNGNjYy1iNGIzLTI3OWNjNjViN2UyMiIsIm5iZiI6MTc0NjEwOTE5MiwiZXhwIjoyMDYxNjQxOTkyLCJpYXQiOjE3NDYxMDkxOTIsImlzcyI6ImF1dGhlbnRpc2lnbiIsImF1ZCI6ImF1dGhlbnRpc2lnbl9leHRlcm5hbCJ9.Bly64sSBx5KKugcQTnGA5Q35ABnjec9eApeqGajGFnhv-Xx7P1IS2br-Wwiscj5-XF72t0zsIOgStFwSoYl2wA';
         request.setHeader('Authorization', 'Bearer ' + jwtToken);
-        // Add externalId header as used in Postman
-        request.setHeader('externalId', 'cd5150af-1965-47c5-ad2c-4b79546937c3');
+        request.setHeader('externalId', externalId != null ? externalId : 'cd5150af-1965-47c5-ad2c-4b79546937c3');
         
-        HttpResponse response = null; // Declare outside try block
+        HttpResponse response = null;
         try {
             System.debug('Sending HTTP request to: ' + endpoint);
-            // Removed getHeaderKeys() as it’s not supported for HttpRequest; log specific headers if needed
-            // System.debug('Request Header Authorization: ' + request.getHeader('Authorization'));
-            // System.debug('Request Header externalId: ' + request.getHeader('externalId'));
             response = http.send(request);
             System.debug('HTTP Response Status: ' + response.getStatus());
             System.debug('HTTP Response Status Code: ' + response.getStatusCode());
             System.debug('HTTP Response Body: ' + response.getBody());
-            // Log response headers for authentication clues
             Map<String, String> responseHeaders = response.getHeaderKeys() != null ? new Map<String, String>() : null;
             if (responseHeaders != null) {
                 for (String key : response.getHeaderKeys()) {
@@ -43,7 +45,6 @@ public with sharing class AuthentisignIntegrationController {
             }
             
             if (response.getStatusCode() == 200) {
-                // Parse JSON response to extract SSO URL
                 Map<String, Object> result = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
                 String ssoUrl = (String)result.get('sso');
                 if (String.isBlank(ssoUrl)) {
@@ -52,7 +53,6 @@ public with sharing class AuthentisignIntegrationController {
                 System.debug('Retrieved SSO URL: ' + ssoUrl);
                 return ssoUrl;
             } else {
-                System.debug('API call failed with status code: ' + response.getStatusCode() + ' - ' + response.getBody());
                 throw new AuraHandledException('Authentisign API Error: HTTP ' + response.getStatusCode() + ' - ' + response.getBody());
             }
         } catch (Exception e) {
