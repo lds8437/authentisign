@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <height>600</height>
-    <label>Launch Authentisign Wizard</label>
-    <lightningComponent>c:authentisignWizard</lightningComponent>
-    <optionsCreateFeedItem>false</optionsCreateFeedItem>
-    <type>LightningComponent</type>
-    <width>800</width>
-</QuickAction>

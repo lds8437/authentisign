@@ -1,4 +1,15 @@
 public with sharing class AuthentisignWizardController {
+
+    @AuraEnabled
+    public static void saveTemplate(String name, String body, String fileType, String objectApiName) {
+        Template__c template = new Template__c(
+            Name = name,
+            Body__c = body,
+            FileType__c = fileType,
+            Object__c = objectApiName
+        );
+        insert template;
+    }
     
     @AuraEnabled(cacheable=true)
     public static List<ContentDocument> getAvailableDocuments() {
