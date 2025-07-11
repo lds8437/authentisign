@@ -68,7 +68,7 @@
 
             <!-- Step 2: Upload Document -->
             <template if:true={isStep2}>
-                <c-pdf-template-editor record-id={recordId} onsave={handleTemplateSave}></c-pdf-template-editor>
+                <c-pdf-template-editor record-id={recordId} onsave={handleTemplateSave} ondocumentselect={handleDocumentSelect}></c-pdf-template-editor>
             </template>
 
             <!-- Step 3: Select Recipient and Role -->

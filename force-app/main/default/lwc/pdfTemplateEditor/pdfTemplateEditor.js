@@ -68,7 +68,7 @@ export default class PdfTemplateEditor extends LightningElement {
                 try {
                     const workerResponse = await fetch(PDFWORKER + '?t=' + Date.now());
                     if (!workerResponse.ok) {
-                        throw new Error(`Failed to fetch PDFWORKER resource: HTTP ${workerResponse.status} ${workerResponse.statusText}`);
+                        throw new Error(`Failed to fetch PDFWORKER resource: HTTP ${workerResponse.status} ${response.statusText}`);
                     }
                     const workerContent = await workerResponse.text();
                     console.log('PDFWORKER resource content preview:', workerContent.slice(0, 100), 'length:', workerContent.length);
@@ -122,6 +122,11 @@ export default class PdfTemplateEditor extends LightningElement {
                 console.log('htmlOutput after conversion:', this.htmlOutput);
                 this.activeTab = 'preview';
                 this.retryPreviewUpdate();
+                // Dispatch document select event with a placeholder documentId
+                const documentId = `local_${Date.now()}_${file.name.replace(/\s+/g, '_')}`; // Unique ID based on timestamp and filename
+                this.dispatchEvent(new CustomEvent('documentselect', {
+                    detail: { documentId, documentTitle: file.name }
+                }));
             };
             reader.onerror = () => {
                 console.error('Error reading file:', reader.error);
@@ -194,11 +199,11 @@ export default class PdfTemplateEditor extends LightningElement {
                 }
                 const htmlContent = textContent.items.map(item => {
                     const text = item.str
-                        .replace(/&/g, '&')
-                        .replace(/</g, '<')
-                        .replace(/>/g, '>')
-                        .replace(/"/g, '"')
-                        .replace(/'/g, '');
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
                     return '<p>' + text + '</p>';
                 }).join('');
                 this.htmlOutput = '<div><h2>Page 1</h2>' + (htmlContent || '<p>No content extracted from PDF</p>') + '</div>';
@@ -258,8 +263,15 @@ export default class PdfTemplateEditor extends LightningElement {
         console.log('handleSaveTemplate: Saving template');
         if (this.htmlOutput && this.selectedFileName) {
             const fileExtension = this.selectedFileName.split('.').pop()?.toLowerCase();
+            const standardizedFileType = fileExtension === 'docx' ? 'DOCX' : fileExtension === 'pdf' ? 'PDF' : null;
+            if (!standardizedFileType) {
+                this.showToast('Error', 'Unsupported file type for saving', 'error');
+                return;
+            }
+            const name = `Template_${this.selectedFileName}_${Date.now()}`; // Dynamic name based on filename and timestamp
+            const objectApiName = 'Contact'; // Default object; adjust as needed
             const saveEvent = new CustomEvent('save', {
-                detail: { htmlOutput: this.htmlOutput, fileType: fileExtension }
+                detail: { htmlOutput: this.htmlOutput, fileType: standardizedFileType, name: name, objectApiName: objectApiName }
             });
             this.dispatchEvent(saveEvent);
         } else {

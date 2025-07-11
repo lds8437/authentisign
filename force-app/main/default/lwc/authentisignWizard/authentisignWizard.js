@@ -31,6 +31,7 @@ export default class AuthentisignWizard extends LightningElement {
     @track tabIndexStep3 = '-1';
     @track tabIndexStep4 = '-1';
     @track isTemplateSaved = false; // Track save success
+    @track hasUploadedDocument = false; // Track document upload
 
     // Step getters
     get isStep1() { return this.currentStep === '1'; }
@@ -88,24 +89,33 @@ export default class AuthentisignWizard extends LightningElement {
     }
 
     handleTemplateSave(event) {
-        const { htmlOutput, fileType } = event.detail;
-        saveTemplate({ name: `Template_${Date.now()}`, body: htmlOutput, fileType: fileType, objectApiName: 'Contact' })
+        const { htmlOutput, fileType, name, objectApiName } = event.detail;
+        console.log('handleTemplateSave: Received event', { htmlOutput, fileType, name, objectApiName });
+        saveTemplate({ name, body: htmlOutput, fileType, objectApiName })
             .then(() => {
+                console.log('handleTemplateSave: Template saved successfully');
                 this.showToast('Success', 'Template saved successfully', 'success');
                 this.fetchTemplates(); // Refresh template list
                 this.isTemplateSaved = true; // Show success indicator
                 this.updatePathClasses(); // Update path state
             })
             .catch(error => {
-                this.error = error.body?.message || 'Unknown error saving template';
+                this.error = error.body?.message || error.message || 'Unknown error saving template';
                 this.showToast('Error', this.error, 'error');
+                console.error('Save Template Error:', {
+                    message: error.body?.message || error.message,
+                    status: error.body?.status,
+                    stack: error.body?.stackTrace,
+                    fullError: JSON.stringify(error)
+                });
             });
     }
 
     handleDocumentSelect(event) {
+        console.log('handleDocumentSelect: Received event', event.detail);
         this.documentId = event.detail.documentId;
-        this.externalDocId = event.detail.externalDocId;
         this.documentTitle = event.detail.documentTitle;
+        this.hasUploadedDocument = true; // Set flag when document is uploaded
         this.updatePathClasses();
     }
 
@@ -141,7 +151,7 @@ export default class AuthentisignWizard extends LightningElement {
 
     canProceed() {
         if (this.isStep1) return this.selectedTemplateOption !== 'existing' || !!this.selectedTemplateId;
-        if (this.isStep2) return this.documentId || this.isTemplateSaved; // Enable Next after save
+        if (this.isStep2) return this.hasUploadedDocument; // Enable Next when document is uploaded
         return true;
     }
 
