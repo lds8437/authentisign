@@ -1,32 +1,78 @@
 <template>
     <lightning-card title="Authentisign Wizard" icon-name="standard:process">
         <div class="slds-p-around_medium">
-            <!-- Current Step Label -->
-            <div class="slds-m-bottom_small">
-                <h2 class="slds-text-heading_small">{currentStepLabel}</h2>
+            <!-- Path Navigation -->
+            <div class="slds-path">
+                <div class="slds-grid slds-path__track">
+                    <div class="slds-grid slds-path__scroller-container">
+                        <div class="slds-path__scroller">
+                            <div class="slds-path__scroller_inner">
+                                <ul class="slds-path__nav" role="listbox" aria-orientation="horizontal" aria-labelledby="slds-path__stage-name">
+                                    <li class={classStep1} role="presentation">
+                                        <a aria-selected={ariaSelectedStep1} class="slds-path__link" href="#" id="path-1" role="option" tabindex={tabIndexStep1}>
+                                            <span class="slds-path__stage">
+                                                <svg class="slds-icon slds-icon_x-small" aria-hidden="true">
+                                                    <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
+                                                </svg>
+                                                <span class="slds-assistive-text">Stage:</span>
+                                            </span>
+                                            <span class="slds-path__title">Choose the Template</span>
+                                        </a>
+                                    </li>
+                                    <li class={classStep2} role="presentation">
+                                        <a aria-selected={ariaSelectedStep2} class="slds-path__link" href="#" id="path-2" role="option" tabindex={tabIndexStep2}>
+                                            <span class="slds-path__stage">
+                                                <svg class="slds-icon slds-icon_x-small" aria-hidden="true">
+                                                    <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
+                                                </svg>
+                                            </span>
+                                            <span class="slds-path__title">Upload Document</span>
+                                        </a>
+                                    </li>
+                                    <li class={classStep3} role="presentation">
+                                        <a aria-selected={ariaSelectedStep3} class="slds-path__link" href="#" id="path-3" role="option" tabindex={tabIndexStep3}>
+                                            <span class="slds-path__stage">
+                                                <svg class="slds-icon slds-icon_x-small" aria-hidden="true">
+                                                    <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
+                                                </svg>
+                                            </span>
+                                            <span class="slds-path__title">Select Recipient and Role</span>
+                                        </a>
+                                    </li>
+                                    <li class={classStep4} role="presentation">
+                                        <a aria-selected={ariaSelectedStep4} class="slds-path__link" href="#" id="path-4" role="option" tabindex={tabIndexStep4}>
+                                            <span class="slds-path__stage">
+                                                <svg class="slds-icon slds-icon_x-small" aria-hidden="true">
+                                                    <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
+                                                </svg>
+                                            </span>
+                                            <span class="slds-path__title">Preview and Send</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Progress Indicator -->
-            <lightning-progress-indicator current-step={currentStep} variant="base" class="slds-m-bottom_medium">
-                <lightning-progress-step label="Upload Document" value="1"></lightning-progress-step>
-                <lightning-progress-step label="Select Recipients" value="2"></lightning-progress-step>
-                <lightning-progress-step label="Map Merge Fields" value="3"></lightning-progress-step>
-                <lightning-progress-step label="Place Fields" value="4"></lightning-progress-step>
-                <lightning-progress-step label="Authentisign Content Configuration" value="5"></lightning-progress-step>
-                <lightning-progress-step label="Review and Send" value="6"></lightning-progress-step>
-            </lightning-progress-indicator>
-
-            <!-- Step 1: Document Upload -->
+            <!-- Step 1: Choose the Template -->
             <template if:true={isStep1}>
-                <c-document-upload-step 
-                    config-id={configId} 
-                    ondocumentselect={handleDocumentSelect}
-                    aria-label="Document upload step"
-                ></c-document-upload-step>
+                <div>
+                    <lightning-radio-group name="templateOption" label="Choose Template Option" options={templateOptions} value={selectedTemplateOption} onchange={handleTemplateOptionChange}></lightning-radio-group>
+                    <template if:true={showExistingTemplates}>
+                        <lightning-combobox name="existingTemplate" label="Select Existing Template" options={templateRecords} value={selectedTemplateId} onchange={handleTemplateSelect}></lightning-combobox>
+                    </template>
+                </div>
             </template>
 
-            <!-- Step 2: Select Recipients -->
+            <!-- Step 2: Upload Document -->
             <template if:true={isStep2}>
+                <c-pdf-template-editor record-id={recordId} onsave={handleTemplateSave} ondocumentselect={handleDocumentSelect}></c-pdf-template-editor>
+            </template>
+
+            <!-- Step 3: Select Recipient and Role -->
+            <template if:true={isStep3}>
                 <c-recipient-select-step 
                     config-id={configId} 
                     record-id={recordId}
@@ -34,42 +80,12 @@
                     external-doc-id={externalDocId}
                     document-title={documentTitle}
                     onrecipientselect={handleRecipientSelect}
-                    aria-label="Recipient selection step"
                 ></c-recipient-select-step>
             </template>
 
-            <!-- Step 3: Map Merge Fields -->
-            <template if:true={isStep3}>
-                <c-merge-field-mapping
-                    config-id={configId}
-                    record-id={recordId}
-                    onfieldmapping={handleFieldMapping}
-                    aria-label="Merge field mapping step"
-                ></c-merge-field-mapping>
-            </template>
-
-            <!-- Step 4: Place Fields -->
+            <!-- Step 4: Preview and Send -->
             <template if:true={isStep4}>
-                <c-place-fields-step
-                    config-id={configId}
-                    record-id={recordId}
-                    document-id={documentId}
-                    merge-fields={mergeFields}
-                    aria-label="Place fields step"
-                ></c-place-fields-step>
-            </template>
-
-            <!-- Step 5: Authentisign Content Configuration -->
-            <template if:true={isStep5}>
-                <c-authentisign-content-config
-                    external-id={externalDocId} 
-                    aria-label="Authentisign content configuration step"
-                ></c-authentisign-content-config>
-            </template>
-
-            <!-- Step 6: Review and Send -->
-            <template if:true={isStep6}>
-                <div>Review and Send Step (Placeholder)</div>
+                <div>Preview and Send Step (Placeholder)</div>
             </template>
 
             <!-- Navigation Buttons -->
@@ -80,20 +96,26 @@
                     onclick={handlePrevious}
                     disabled={isPreviousDisabled}
                     class="slds-m-right_small"
-                    aria-label="Go to previous step"
                 ></lightning-button>
                 <lightning-button
                     variant="brand"
                     label="Next"
                     onclick={handleNext}
                     disabled={isNextDisabled}
-                    aria-label="Go to next step"
                 ></lightning-button>
             </div>
 
             <!-- Error Message -->
             <template if:true={error}>
                 <div class="slds-text-color_error slds-m-top_small">{error}</div>
+            </template>
+
+            <!-- Save Success Indicator -->
+            <template if:true={isTemplateSaved}>
+                <div class="slds-m-top_small slds-text-color_success">
+                    <lightning-icon icon-name="utility:check" size="x-small"></lightning-icon>
+                    Template saved successfully!
+                </div>
             </template>
         </div>
     </lightning-card>

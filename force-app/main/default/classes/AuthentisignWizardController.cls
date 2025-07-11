@@ -1,4 +1,22 @@
 public with sharing class AuthentisignWizardController {
+
+    @AuraEnabled
+    public static void saveTemplate(String name, String body, String fileType, String objectApiName) {
+        System.debug('saveTemplate: Received parameters - name=' + name + ', body length=' + (body != null ? body.length() : 0) + ', fileType=' + fileType + ', objectApiName=' + objectApiName);
+        try {
+            Template__c template = new Template__c(
+                Name = name,
+                Body__c = body,
+                FileType__c = fileType,
+                Object__c = objectApiName
+            );
+            insert template;
+            System.debug('saveTemplate: Successfully inserted template with Id=' + template.Id);
+        } catch (Exception e) {
+            System.debug('saveTemplate Error: ' + e.getMessage() + ', StackTrace=' + e.getStackTraceString());
+            throw new AuraHandledException('Error saving template: ' + e.getMessage());
+        }
+    }
     
     @AuraEnabled(cacheable=true)
     public static List<ContentDocument> getAvailableDocuments() {

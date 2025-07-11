@@ -39,6 +39,7 @@
                         <template if:false={htmlOutput}>
                             <p class="slds-p-around_medium">No content available for preview.</p>
                         </template>
+                        <lightning-button variant="brand" label="Save Template" title="Save Template" onclick={handleSaveTemplate} class="slds-m-top_medium" disabled={isSaveDisabled}></lightning-button>
                     </lightning-tab>
                     <lightning-tab label="Source Code" value="source">
                         <lightning-textarea
@@ -46,6 +47,7 @@
                             value={htmlOutput}
                             onchange={handleHtmlChange}
                             class="slds-m-around_medium"
+                            rows="20"
                         ></lightning-textarea>
                         <lightning-button
                             label="Apply Changes"
