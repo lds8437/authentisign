@@ -1,0 +1,99 @@
+<template>
+    <lightning-card title="AuthentiSign Mapping Layout">
+        <div class="slds-p-around_medium">
+            <p>Layout: {selectedLayout.name}</p>
+            <p>Record: {recordName}</p>
+            <p>Expiration Date: <lightning-input
+                type="date"
+                value={expirationDate}
+                onchange={handleExpirationDateChange}
+            ></lightning-input></p>
+
+            <h3>AuthentiSign Fields</h3>
+            <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th scope="col">AuthentiSign Fields</th>
+                        <th scope="col">Salesforce Fields</th>
+                        <th scope="col">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={fields} for:item="record" for:index="index">
+                        <tr key={record.name}>
+                            <td>{record.name}</td>
+                            <td>
+                                <lightning-combobox
+                                    name="ddlSFQuoteField"
+                                    data-index={index}
+                                    value={record.field}
+                                    options={recordFields}
+                                    onchange={handleQuoteFieldChange}
+                                ></lightning-combobox>
+                            </td>
+                            <td>
+                                <lightning-input
+                                    type="text"
+                                    name="txtQuoteFieldValue"
+                                    data-index={index}
+                                    value={record.value}
+                                    disabled
+                                ></lightning-input>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <h3>Participants</h3>
+            <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th scope="col">Role</th>
+                        <th scope="col">User/Contact</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={roles} for:item="record" for:index="index">
+                        <tr key={record.name}>
+                            <td>{record.name}</td>
+                            <td>
+                                <lightning-combobox
+                                    name="ddlUserContact"
+                                    data-index={index}
+                                    value={record.value}
+                                    options={userContactFields}
+                                    onchange={handleUserContactChange}
+                                ></lightning-combobox>
+                            </td>
+                            <td>{record.data.Name}</td>
+                            <td>{record.data.Email}</td>
+                            <td>{record.data.Type}</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <div class="slds-m-top_medium">
+                <lightning-button
+                    label="Back"
+                    onclick={handleBack}
+                    variant="neutral"
+                    class="slds-m-right_small"
+                ></lightning-button>
+                <lightning-button
+                    label="Submit"
+                    onclick={createRequest}
+                    variant="brand"
+                ></lightning-button>
+            </div>
+        </div>
+
+        <template if:true={spinner}>
+            <lightning-spinner alternative-text="Loading..."></lightning-spinner>
+        </template>
+    </lightning-card>
+</template>

@@ -1,0 +1,90 @@
+<template>
+    <lightning-card title="AuthentiSign Document Signers">
+        <div class="slds-p-around_medium">
+            <p>Document: {documentName}</p>
+            <p>Record: {recordName}</p>
+
+            <template if:true={showMessage}>
+                <div class="slds-box slds-theme_{messageType}">
+                    <p>{message}</p>
+                </div>
+            </template>
+
+            <h3>Signers</h3>
+            <lightning-button
+                label="Add Signer"
+                onclick={addSigner}
+                variant="neutral"
+                class="slds-m-bottom_small"
+            ></lightning-button>
+
+            <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th scope="col">Role</th>
+                        <th scope="col">User/Contact</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Type</th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={signers} for:item="record" for:index="index">
+                        <tr key={record.data.Id}>
+                            <td>
+                                <lightning-input
+                                    type="text"
+                                    name={getRoleName}
+                                    data-index={index}
+                                    value={record.data.Role}
+                                    onchange={handleRoleChange}
+                                ></lightning-input>
+                            </td>
+                            <td>
+                                <lightning-combobox
+                                    name={getUserContactName}
+                                    data-index={index}
+                                    value={record.value}
+                                    options={userContactFields}
+                                    onchange={handleUserContactChange}
+                                ></lightning-combobox>
+                            </td>
+                            <td>{recordNameForSigner}</td>
+                            <td>{recordEmailForSigner}</td>
+                            <td>{recordTypeForSigner}</td>
+                            <td>
+                                <lightning-button-icon
+                                    name={getDeleteName}
+                                    data-index={index}
+                                    icon-name="utility:delete"
+                                    variant="bare"
+                                    onclick={deleteSigner}
+                                    alternative-text="Delete"
+                                ></lightning-button-icon>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <div class="slds-m-top_medium">
+                <lightning-button
+                    label="Back"
+                    onclick={handleBack}
+                    variant="neutral"
+                    class="slds-m-right_small"
+                ></lightning-button>
+                <lightning-button
+                    label="Submit"
+                    onclick={createRequest}
+                    variant="brand"
+                ></lightning-button>
+            </div>
+        </div>
+
+        <template if:true={spinner}>
+            <lightning-spinner alternative-text="Loading..."></lightning-spinner>
+        </template>
+    </lightning-card>
+</template>
