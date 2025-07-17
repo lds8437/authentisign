@@ -171,11 +171,6 @@
             <actionType>StandardButton</actionType>
             <sortOrder>23</sortOrder>
         </platformActionListItems>
-        <platformActionListItems>
-            <actionName>AuthentisignConfig__c.Launch_Authentisign_Wizard</actionName>
-            <actionType>QuickAction</actionType>
-            <sortOrder>24</sortOrder>
-        </platformActionListItems>
     </platformActionList>
     <quickActionList>
         <quickActionListItems>
