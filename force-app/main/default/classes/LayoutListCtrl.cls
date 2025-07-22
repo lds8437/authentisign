@@ -14,6 +14,18 @@
 * Modified Date      : Jul 14, 2025
 * Modified By        : Grok
 * Description        : Added getLayoutMappings to support authentiSignLayoutList LWC
+* Modified Date      : Jul 20, 2025
+* Modified By        : Grok
+* Description        : Removed cacheable=true from saveAttachment due to DML operations
+* Modified Date      : Jul 20, 2025
+* Modified By        : Grok
+* Description        : Added language parameter to API request to fix 400 Bad Request error
+* Modified Date      : Jul 20, 2025
+* Modified By        : Grok
+* Description        : Updated deserialization to handle List<Object> API response
+* Modified Date      : Jul 20, 2025
+* Modified By        : Grok
+* Description        : Added getSettings method for AuthentiSign SSO
 *********************************************************
 */
 public with sharing class LayoutListCtrl {
@@ -26,7 +38,7 @@ public with sharing class LayoutListCtrl {
     @return         : LayoutResponse
     ********************************************************
     */
-    @AuraEnabled
+    @AuraEnabled(cacheable=true)
     public static LayoutResponse getLayouts(String recordId, String objectName) {
         LayoutResponse response = new LayoutResponse();
         response.wrapper = new List<LayoutWrapper>();
@@ -43,11 +55,24 @@ public with sharing class LayoutListCtrl {
                 'Accept' => 'application/json',
                 'externalId' => setting.Account_Id__c
             };
-            String endpoint = setting.Endpoint__c + '/api/v1/layouts';
+            String endpoint = setting.Endpoint__c + '/api/v1/layouts?language=en';
             String responseBody = Utility.sendHttpRequest('GET', endpoint, headers, setting.Bearer_Token__c, '');
             
-            Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(responseBody);
-            List<Object> layouts = (List<Object>) responseMap.get('layouts');
+            // Handle both Map and List responses
+            Object responseObj = JSON.deserializeUntyped(responseBody);
+            List<Object> layouts;
+            if (responseObj instanceof Map<String, Object>) {
+                Map<String, Object> responseMap = (Map<String, Object>) responseObj;
+                layouts = (List<Object>) responseMap.get('layouts');
+            } else if (responseObj instanceof List<Object>) {
+                layouts = (List<Object>) responseObj;
+            } else {
+                throw new AuraHandledException('Unexpected API response format');
+            }
+            
+            if (layouts == null) {
+                throw new AuraHandledException('No layouts found in API response');
+            }
             
             for (Object layoutObj : layouts) {
                 Map<String, Object> layout = (Map<String, Object>) layoutObj;
@@ -116,11 +141,24 @@ public with sharing class LayoutListCtrl {
                 'Accept' => 'application/json',
                 'externalId' => setting.Account_Id__c
             };
-            String endpoint = setting.Endpoint__c + '/api/v1/layouts';
+            String endpoint = setting.Endpoint__c + '/api/v1/layouts?language=en';
             String responseBody = Utility.sendHttpRequest('GET', endpoint, headers, setting.Bearer_Token__c, '');
             
-            Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(responseBody);
-            List<Object> layouts = (List<Object>) responseMap.get('layouts');
+            // Handle both Map and List responses
+            Object responseObj = JSON.deserializeUntyped(responseBody);
+            List<Object> layouts;
+            if (responseObj instanceof Map<String, Object>) {
+                Map<String, Object> responseMap = (Map<String, Object>) responseObj;
+                layouts = (List<Object>) responseMap.get('layouts');
+            } else if (responseObj instanceof List<Object>) {
+                layouts = (List<Object>) responseObj;
+            } else {
+                throw new AuraHandledException('Unexpected API response format');
+            }
+            
+            if (layouts == null) {
+                throw new AuraHandledException('No layouts found in API response');
+            }
             
             for (Object layoutObj : layouts) {
                 Map<String, Object> layout = (Map<String, Object>) layoutObj;
@@ -163,6 +201,7 @@ public with sharing class LayoutListCtrl {
             throw new AuraHandledException('Error fetching layouts: ' + e.getMessage());
         }
     }
+
     /*
     *********************************************************
     @Method Name    : saveAttachment
@@ -212,6 +251,30 @@ public with sharing class LayoutListCtrl {
         } catch (Exception e) {
             System.debug('Error in saveAttachment: ' + e.getMessage());
             throw new AuraHandledException('Error saving attachment: ' + e.getMessage());
+        }
+    }
+
+    /*
+    *********************************************************
+    @Method Name    : getSettings
+    @description    : Fetch AuthentiSign settings for SSO
+    @return         : Map<String, String>
+    ********************************************************
+    */
+    @AuraEnabled(cacheable=true)
+    public static Map<String, String> getSettings() {
+        try {
+            Setting__c setting = Utility.getSetting();
+            if (setting == null) {
+                throw new AuraHandledException('AuthentiSign settings not found.');
+            }
+            return new Map<String, String>{
+                'endpoint' => setting.Endpoint__c,
+                'bearerToken' => setting.Bearer_Token__c
+            };
+        } catch (Exception e) {
+            System.debug('Error in getSettings: ' + e.getMessage());
+            throw new AuraHandledException('Error fetching settings: ' + e.getMessage());
         }
     }
 }
