@@ -7,4 +7,12 @@
         <target>lightning__RecordPage</target>
         <target>lightning__HomePage</target>
     </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage,lightning__AppPage">
+            <property name="recordId" type="String" label="Record Id" description="The ID of the record"/>
+            <property name="objectName" type="String" label="Object Name" description="The API name of the object"/>
+            <property name="signingId" type="String" label="Signing Id" description="The AuthentiSign signing ID"/>
+            <property name="externalId" type="String" label="External Id" description="The AuthentiSign external ID"/>
+        </targetConfig>
+    </targetConfigs>
 </LightningComponentBundle>

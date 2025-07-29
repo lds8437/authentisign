@@ -1,95 +1,106 @@
 <template>
-    <lightning-card title="AuthentiSign Layouts" icon-name="standard:document">
-        <!-- Add Create New Template button in the header -->
-        <div slot="actions">
-            <lightning-button-icon
-                icon-name="utility:add"
-                variant="border-filled"
-                alternative-text="Create New Template"
-                title="Create New Template"
-                onclick={handleCreateTemplate}
-                class="slds-m-right_x-small"
-            ></lightning-button-icon>
-        </div>
-
+    <lightning-card title="AuthentiSign Layouts" icon-name="custom:custom14">
         <div class="slds-p-around_medium">
-            <lightning-radio-group
-                name="layoutOrDocument"
-                label="Select an Option"
-                options={radioOptions}
-                value={selectedOption}
-                onchange={handleChangeRadio}
-                type="radio"
-            ></lightning-radio-group>
-
-            <template if:true={isDocumentSelected}>
-                <lightning-combobox
-                    name="ddlDocuments"
-                    label="Select Document"
-                    value={selectedDocument}
-                    placeholder="Select Document"
-                    options={documents}
-                    onchange={handleChangeDocument}
-                    disabled={documentSigningId}
-                ></lightning-combobox>
-                <template if:true={documentSigningId}>
-                    <lightning-layout multiple-rows="true">
-                        <lightning-layout-item size="12">
-                            <p>Status: <lightning-badge label={documentSigningStatus}></lightning-badge></p>
-                        </lightning-layout-item>
-                        <lightning-layout-item size="12">
-                            <lightning-button-icon
-                                variant="border-filled"
-                                icon-name="utility:download"
-                                title="Preview"
-                                onclick={displayPdfDocument}
-                            ></lightning-button-icon>
-                        </lightning-layout-item>
-                    </lightning-layout>
-                </template>
-                <div class={startDocumentButtonClass}>
-                    <lightning-button
-                        variant="brand"
-                        label="Start"
-                        title="Start"
-                        onclick={navigateToSigners}
-                    ></lightning-button>
-                </div>
+            <!-- Loading Spinner -->
+            <template if:true={spinner}>
+                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
             </template>
 
-            <template if:false={isDocumentSelected}>
-                <lightning-combobox
-                    name="ddlLayout"
-                    label="Select Layout"
-                    value={selectedRecord}
-                    placeholder="Select Layout"
-                    options={layouts}
-                    onchange={handleLayoutChange}
-                    disabled={savedLayoutId}
-                ></lightning-combobox>
-                <template if:true={savedLayoutId}>
-                    <lightning-layout multiple-rows="true">
-                        <lightning-layout-item size="12">
-                            <p>Status: <lightning-badge label={signingStatus}></lightning-badge></p>
-                        </lightning-layout-item>
-                        <lightning-layout-item size="12">
-                            <lightning-button-icon
-                                variant="border-filled"
-                                icon-name="utility:download"
-                                title="Preview"
-                                onclick={displayPdf}
-                            ></lightning-button-icon>
-                        </lightning-layout-item>
-                    </lightning-layout>
-                </template>
-                <div class={startButtonClass}>
+            <!-- Error Display -->
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-m-bottom_medium">{error}</div>
+                <template if:true={showRetryButton}>
                     <lightning-button
                         variant="brand"
-                        label="Start"
-                        title="Start"
-                        onclick={navigateToMappings}
+                        label="Retry Loading Layouts"
+                        onclick={handleRetry}
+                        class="slds-m-top_small"
                     ></lightning-button>
-                </div>
+                </template>
+            </template>
+
+            <!-- Main Content -->
+            <template if:false={spinner}>
+                <!-- Radio Group for Document/Layout Selection -->
+                <lightning-radio-group
+                    name="docOrLayout"
+                    label="Select Type"
+                    options={radioOptions}
+                    value={selectedOption}
+                    type="radio"
+                    onchange={handleChangeRadio}
+                    class="slds-m-bottom_medium"
+                ></lightning-radio-group>
+
+                <!-- Layout Section -->
+                <template if:false={isDocumentSelected}>
+                    <div class="slds-box slds-m-bottom_medium">
+                        <lightning-combobox
+                            name="layout"
+                            label="Layouts"
+                            value={selectedRecord}
+                            placeholder="Select Layout"
+                            options={layouts}
+                            onchange={handleLayoutChange}
+                            disabled={isLayoutSigned}
+                        ></lightning-combobox>
+                        <p class="slds-m-top_small">
+                            <strong>Status:</strong> {signingStatus}
+                        </p>
+                        <template if:false={isLayoutSigned}>
+                            <lightning-button
+                                variant="brand"
+                                label="Create New Template"
+                                onclick={handleCreateTemplate}
+                                class={startButtonClassWithMargin}
+                            ></lightning-button>
+                            <lightning-button
+                                variant="neutral"
+                                label="Map Fields and Roles"
+                                onclick={navigateToMappings}
+                                class={startButtonClassWithMargin}
+                            ></lightning-button>
+                        </template>
+                        <lightning-button
+                            variant="neutral"
+                            label="Display PDF"
+                            onclick={displayPdf}
+                            class="slds-m-top_small"
+                        ></lightning-button>
+                    </div>
+                </template>
+
+                <!-- Document Section -->
+                <template if:true={isDocumentSelected}>
+                    <div class="slds-box slds-m-bottom_medium">
+                        <lightning-combobox
+                            name="document"
+                            label="Documents"
+                            value={selectedDocument}
+                            placeholder="Select Document"
+                            options={documents}
+                            onchange={handleChangeDocument}
+                            disabled={isDocumentSigned}
+                        ></lightning-combobox>
+                        <p class="slds-m-top_small">
+                            <strong>Status:</strong> {documentSigningStatus}
+                        </p>
+                        <template if:false={isDocumentSigned}>
+                            <lightning-button
+                                variant="brand"
+                                label="Select Signers"
+                                onclick={navigateToSigners}
+                                class={startDocumentButtonClassWithMargin}
+                            ></lightning-button>
+                        </template>
+                        <lightning-button
+                            variant="neutral"
+                            label="Display PDF"
+                            onclick={displayPdfDocument}
+                            class="slds-m-top_small"
+                        ></lightning-button>
+                    </div>
+                </template>
             </template>
         </div>
     </lightning-card>

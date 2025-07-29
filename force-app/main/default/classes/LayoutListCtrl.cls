@@ -23,12 +23,50 @@
 * Modified Date      : Jul 20, 2025
 * Modified By        : Grok
 * Description        : Updated deserialization to handle List<Object> API response
-* Modified Date      : Jul 20, 2025
+* Modified Date      : Jul 22, 2025
 * Modified By        : Grok
-* Description        : Added getSettings method for AuthentiSign SSO
+* Description        : Used DataLayer.getSetting, removed Is_Active__c, fixed syntax error
+* Modified Date      : Jul 28, 2025
+* Modified By        : Grok
+* Description        : Fixed date/time parsing error for API response (Invalid date/time: 2025-06-09T10:27:35.17)
+* Modified Date      : Jul 28, 2025
+* Modified By        : Grok
+* Description        : Fixed List<ANY> to List<String> conversion for fields and roles
 *********************************************************
 */
 public with sharing class LayoutListCtrl {
+
+    /*
+    *********************************************************
+    @Method Name    : normalizeDateTime
+    @description    : Normalize date/time string to a format compatible with DateTime.valueOf
+    @param          : String dateTimeStr
+    @return         : DateTime
+    ********************************************************
+    */
+    private static DateTime normalizeDateTime(String dateTimeStr) {
+        if (String.isBlank(dateTimeStr)) {
+            return null;
+        }
+        try {
+            // Remove millisecond precision and ensure time zone (assume UTC if missing)
+            String normalized = dateTimeStr;
+            // Remove milliseconds (e.g., .17)
+            if (normalized.contains('.')) {
+                normalized = normalized.substringBefore('.') + normalized.substringAfterLast('.');
+            }
+            // Append 'Z' if no time zone is specified
+            if (!normalized.endsWith('Z') && !normalized.contains('+') && !normalized.contains('-')) {
+                normalized += 'Z';
+            }
+            // Replace 'T' with space for DateTime.valueOfGmt compatibility
+            normalized = normalized.replace('T', ' ').replace('Z', '');
+            return DateTime.valueOfGmt(normalized);
+        } catch (Exception e) {
+            System.debug('Error normalizing date/time: ' + dateTimeStr + ', Error: ' + e.getMessage());
+            return null; // Return null for invalid date/time to avoid breaking the loop
+        }
+    }
 
     /*
     *********************************************************
@@ -45,7 +83,7 @@ public with sharing class LayoutListCtrl {
         response.documents = new Map<String, String>();
         
         try {
-            Setting__c setting = Utility.getSetting();
+            Setting__c setting = DataLayer.getSetting();
             if (setting == null) {
                 throw new AuraHandledException('AuthentiSign settings not found.');
             }
@@ -79,11 +117,45 @@ public with sharing class LayoutListCtrl {
                 LayoutWrapper wrapper = new LayoutWrapper();
                 wrapper.id = (String) layout.get('id');
                 wrapper.name = (String) layout.get('name');
-                wrapper.dateCreated = layout.get('dateCreated') != null ? DateTime.valueOf((String) layout.get('dateCreated')) : null;
-                wrapper.lastModified = layout.get('lastModified') != null ? DateTime.valueOf((String) layout.get('lastModified')) : null;
-                wrapper.roles = (List<String>) layout.get('roles');
-                wrapper.fields = (List<String>) layout.get('fields');
+                wrapper.dateCreated = layout.get('dateCreated') != null ? normalizeDateTime((String) layout.get('dateCreated')) : null;
+                wrapper.lastModified = layout.get('lastModified') != null ? normalizeDateTime((String) layout.get('lastModified')) : null;
                 wrapper.layoutParticipants = new List<LayoutParticipant>();
+                
+                // Handle fields
+                wrapper.fields = new List<String>();
+                Object fieldsObj = layout.get('fields');
+                if (fieldsObj instanceof List<Object>) {
+                    List<Object> fieldList = (List<Object>) fieldsObj;
+                    for (Object field : fieldList) {
+                        if (field instanceof String) {
+                            wrapper.fields.add((String) field);
+                        } else if (field instanceof Map<String, Object>) {
+                            Map<String, Object> fieldMap = (Map<String, Object>) field;
+                            String fieldName = (String) fieldMap.get('name');
+                            if (String.isNotBlank(fieldName)) {
+                                wrapper.fields.add(fieldName);
+                            }
+                        }
+                    }
+                }
+                
+                // Handle roles
+                wrapper.roles = new List<String>();
+                Object rolesObj = layout.get('roles');
+                if (rolesObj instanceof List<Object>) {
+                    List<Object> roleList = (List<Object>) rolesObj;
+                    for (Object role : roleList) {
+                        if (role instanceof String) {
+                            wrapper.roles.add((String) role);
+                        } else if (role instanceof Map<String, Object>) {
+                            Map<String, Object> roleMap = (Map<String, Object>) role;
+                            String roleName = (String) roleMap.get('name');
+                            if (String.isNotBlank(roleName)) {
+                                wrapper.roles.add(roleName);
+                            }
+                        }
+                    }
+                }
                 
                 List<Object> participants = (List<Object>) layout.get('participants');
                 if (participants != null) {
@@ -94,7 +166,7 @@ public with sharing class LayoutListCtrl {
                         lp.layoutId = (String) participant.get('layoutId');
                         lp.role = (String) participant.get('role');
                         lp.order = participant.get('order') != null ? Integer.valueOf(participant.get('order')) : null;
-                        lp.dateCreated = participant.get('dateCreated') != null ? DateTime.valueOf((String) participant.get('dateCreated')) : null;
+                        lp.dateCreated = participant.get('dateCreated') != null ? normalizeDateTime((String) participant.get('dateCreated')) : null;
                         lp.layout = (String) participant.get('layout');
                         wrapper.layoutParticipants.add(lp);
                     }
@@ -111,7 +183,7 @@ public with sharing class LayoutListCtrl {
             
             return response;
         } catch (Exception e) {
-            System.debug('Error in getLayouts: ' + e.getMessage());
+            System.debug('Error in getLayouts: ' + e.getMessage() + '\n' + e.getStackTraceString());
             throw new AuraHandledException('Error fetching layouts: ' + e.getMessage());
         }
     }
@@ -131,7 +203,7 @@ public with sharing class LayoutListCtrl {
         response.documents = new Map<String, String>();
         
         try {
-            Setting__c setting = Utility.getSetting();
+            Setting__c setting = DataLayer.getSetting();
             if (setting == null) {
                 throw new AuraHandledException('AuthentiSign settings not found.');
             }
@@ -165,11 +237,45 @@ public with sharing class LayoutListCtrl {
                 LayoutWrapper wrapper = new LayoutWrapper();
                 wrapper.id = (String) layout.get('id');
                 wrapper.name = (String) layout.get('name');
-                wrapper.dateCreated = layout.get('dateCreated') != null ? DateTime.valueOf((String) layout.get('dateCreated')) : null;
-                wrapper.lastModified = layout.get('lastModified') != null ? DateTime.valueOf((String) layout.get('lastModified')) : null;
-                wrapper.roles = (List<String>) layout.get('roles');
-                wrapper.fields = (List<String>) layout.get('fields');
+                wrapper.dateCreated = layout.get('dateCreated') != null ? normalizeDateTime((String) layout.get('dateCreated')) : null;
+                wrapper.lastModified = layout.get('lastModified') != null ? normalizeDateTime((String) layout.get('lastModified')) : null;
                 wrapper.layoutParticipants = new List<LayoutParticipant>();
+                
+                // Handle fields
+                wrapper.fields = new List<String>();
+                Object fieldsObj = layout.get('fields');
+                if (fieldsObj instanceof List<Object>) {
+                    List<Object> fieldList = (List<Object>) fieldsObj;
+                    for (Object field : fieldList) {
+                        if (field instanceof String) {
+                            wrapper.fields.add((String) field);
+                        } else if (field instanceof Map<String, Object>) {
+                            Map<String, Object> fieldMap = (Map<String, Object>) field;
+                            String fieldName = (String) fieldMap.get('name');
+                            if (String.isNotBlank(fieldName)) {
+                                wrapper.fields.add(fieldName);
+                            }
+                        }
+                    }
+                }
+                
+                // Handle roles
+                wrapper.roles = new List<String>();
+                Object rolesObj = layout.get('roles');
+                if (rolesObj instanceof List<Object>) {
+                    List<Object> roleList = (List<Object>) rolesObj;
+                    for (Object role : roleList) {
+                        if (role instanceof String) {
+                            wrapper.roles.add((String) role);
+                        } else if (role instanceof Map<String, Object>) {
+                            Map<String, Object> roleMap = (Map<String, Object>) role;
+                            String roleName = (String) roleMap.get('name');
+                            if (String.isNotBlank(roleName)) {
+                                wrapper.roles.add(roleName);
+                            }
+                        }
+                    }
+                }
                 
                 List<Object> participants = (List<Object>) layout.get('participants');
                 if (participants != null) {
@@ -180,7 +286,7 @@ public with sharing class LayoutListCtrl {
                         lp.layoutId = (String) participant.get('layoutId');
                         lp.role = (String) participant.get('role');
                         lp.order = participant.get('order') != null ? Integer.valueOf(participant.get('order')) : null;
-                        lp.dateCreated = participant.get('dateCreated') != null ? DateTime.valueOf((String) participant.get('dateCreated')) : null;
+                        lp.dateCreated = participant.get('dateCreated') != null ? normalizeDateTime((String) participant.get('dateCreated')) : null;
                         lp.layout = (String) participant.get('layout');
                         wrapper.layoutParticipants.add(lp);
                     }
@@ -197,7 +303,7 @@ public with sharing class LayoutListCtrl {
             
             return response;
         } catch (Exception e) {
-            System.debug('Error in getLayoutMappings: ' + e.getMessage());
+            System.debug('Error in getLayoutMappings: ' + e.getMessage() + '\n' + e.getStackTraceString());
             throw new AuraHandledException('Error fetching layouts: ' + e.getMessage());
         }
     }
@@ -213,7 +319,7 @@ public with sharing class LayoutListCtrl {
     @AuraEnabled
     public static String saveAttachment(String recordId, String signingId, String objectName, Boolean isLayout) {
         try {
-            Setting__c setting = Utility.getSetting();
+            Setting__c setting = DataLayer.getSetting();
             if (setting == null) {
                 throw new AuraHandledException('AuthentiSign settings not found.');
             }
@@ -249,7 +355,7 @@ public with sharing class LayoutListCtrl {
             
             return cdl.ContentDocumentId;
         } catch (Exception e) {
-            System.debug('Error in saveAttachment: ' + e.getMessage());
+            System.debug('Error in saveAttachment: ' + e.getMessage() + '\n' + e.getStackTraceString());
             throw new AuraHandledException('Error saving attachment: ' + e.getMessage());
         }
     }
@@ -264,16 +370,15 @@ public with sharing class LayoutListCtrl {
     @AuraEnabled(cacheable=true)
     public static Map<String, String> getSettings() {
         try {
-            Setting__c setting = Utility.getSetting();
+            Setting__c setting = DataLayer.getSetting();
             if (setting == null) {
                 throw new AuraHandledException('AuthentiSign settings not found.');
             }
             return new Map<String, String>{
-                'endpoint' => setting.Endpoint__c,
-                'bearerToken' => setting.Bearer_Token__c
+                'externalId' => setting.Account_Id__c
             };
         } catch (Exception e) {
-            System.debug('Error in getSettings: ' + e.getMessage());
+            System.debug('Error in getSettings: ' + e.getMessage() + '\n' + e.getStackTraceString());
             throw new AuraHandledException('Error fetching settings: ' + e.getMessage());
         }
     }

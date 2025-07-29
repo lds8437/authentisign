@@ -29,6 +29,10 @@ export default class AuthentiSignLayoutList extends NavigationMixin(LightningEle
     @track documentSigningStatus = '';
     @track spinner = false;
     @track externalId = '';
+    @track settingsLoaded = false;
+    @track settingsError = null;
+    @track error = null;
+    @track showRetryButton = false;
 
     // Computed properties
     get isDocumentSelected() {
@@ -51,15 +55,38 @@ export default class AuthentiSignLayoutList extends NavigationMixin(LightningEle
         return this.selectedDocument ? 'slds-button slds-button_brand' : 'slds-button slds-button_brand slds-hide';
     }
 
+    // Combined class properties with margin
+    get startButtonClassWithMargin() {
+        return `${this.startButtonClass} slds-m-top_small`;
+    }
+
+    get startDocumentButtonClassWithMargin() {
+        return `${this.startDocumentButtonClass} slds-m-top_small`;
+    }
+
+    // Store wired result for refreshApex
+    wiredLayoutsResult;
+
     // Wire Apex call to fetch layouts
     @wire(getLayouts, { recordId: '$recordId', objectName: '$sObjectName' })
     wiredLayouts({ error, data }) {
+        this.wiredLayoutsResult = { error, data };
         if (data) {
-            console.log('getLayouts data:', JSON.stringify(data));
+            console.log('getLayouts data:', JSON.stringify(data, null, 2));
             this.populateLayoutsAndDocuments(data);
+            this.error = null;
+            this.showRetryButton = false;
         } else if (error) {
-            console.error('Error fetching layouts:', JSON.stringify(error));
-            this.showToast('Error', error.body?.message || 'Unknown error', 'error');
+            console.error('Error fetching layouts:', JSON.stringify(error, null, 2), 'Record ID:', this.recordId, 'Object Name:', this.sObjectName);
+            this.error = error.body?.message?.includes('Invalid date/time')
+                ? 'Unable to load layouts due to an invalid date format in the response. Try refreshing the page, selecting the "Document" option, or contact your administrator.'
+                : error.body?.message?.includes('Invalid conversion from runtime type List<ANY> to List<String>')
+                ? 'Unable to load layouts due to an invalid response format. Try refreshing the page, selecting the "Document" option, or contact your administrator.'
+                : error.body?.message || 'Failed to load layouts. Try refreshing the page or contact your administrator.';
+            this.layouts = [{ label: 'Select Layout', value: '' }];
+            this.documents = [{ label: 'Select Document', value: '' }];
+            this.showRetryButton = true;
+            this.showToast('Error', this.error, 'error', 'sticky');
         }
     }
 
@@ -67,28 +94,54 @@ export default class AuthentiSignLayoutList extends NavigationMixin(LightningEle
     @wire(getSettings)
     wiredSettings({ error, data }) {
         if (data) {
-            console.log('Settings:', JSON.stringify(data));
+            console.log('Settings loaded:', JSON.stringify(data, null, 2));
             this.externalId = data.externalId;
+            this.settingsLoaded = true;
+            this.settingsError = null;
         } else if (error) {
-            console.error('Error fetching settings:', JSON.stringify(error));
-            this.showToast('Error', error.body?.message || 'Error fetching settings', 'error');
+            console.error('Error fetching settings:', JSON.stringify(error, null, 2));
+            this.settingsLoaded = false;
+            this.settingsError = error.body?.message || 'Failed to load settings. Please contact your administrator.';
+            this.showToast('Error', this.settingsError, 'error', 'sticky');
         }
+    }
+
+    // Retry fetching layouts
+    handleRetry() {
+        this.spinner = true;
+        this.error = null;
+        this.showRetryButton = false;
+        refreshApex(this.wiredLayoutsResult)
+            .then(() => {
+                console.log('Retry fetch layouts successful');
+                this.spinner = false;
+            })
+            .catch(error => {
+                console.error('Retry fetch layouts failed:', JSON.stringify(error, null, 2), 'Record ID:', this.recordId, 'Object Name:', this.sObjectName);
+                this.error = error.body?.message?.includes('Invalid date/time')
+                    ? 'Retry failed: Invalid date format in response. Please contact your administrator.'
+                    : error.body?.message?.includes('Invalid conversion from runtime type List<ANY> to List<String>')
+                    ? 'Retry failed: Invalid response format. Please contact your administrator.'
+                    : error.body?.message || 'Retry failed: Unable to load layouts. Please contact your administrator.';
+                this.showRetryButton = true;
+                this.spinner = false;
+                this.showToast('Error', this.error, 'error', 'sticky');
+            });
     }
 
     // Populate layouts and documents
     populateLayoutsAndDocuments(result) {
         this.layouts = [{ label: 'Select Layout', value: '' }, ...result.wrapper.map(w => ({ label: w.name, value: w.id }))];
-        this.selectedRecord = result.record?.[LayoutListHelper.getFieldMapping(this.sObjectName, 'Layout_Id__c', 'Layout_Id__c')] || '';
-        this.savedLayoutId = result.record?.[LayoutListHelper.getFieldMapping(this.sObjectName, 'Layout_Id__c', 'Layout_Id__c')] || '';
+        this.selectedRecord = result.record?.Layout_Id__c || '';
+        this.savedLayoutId = result.record?.Layout_Id__c || '';
         this.signingStatus = result.signingStatus || '';
         this.documentSigningStatus = result.documentSigningStatus || '';
-        this.attachmentId = result.record?.[LayoutListHelper.getFieldMapping(this.sObjectName, 'AttachmentId__c', 'AttachmentId__c')] || '';
-        this.documentAttachmentId = result.record?.[LayoutListHelper.getFieldMapping(this.sObjectName, 'Document_Attachment_Id__c', 'Document_Attachment_Id__c')] || '';
+        this.attachmentId = result.record?.AttachmentId__c || '';
+        this.documentAttachmentId = result.record?.Document_Attachment_Id__c || '';
         this.record = result.record || {};
-
         this.documents = [{ label: 'Select Document', value: '' }, ...Object.entries(result.documents || {}).map(([value, label]) => ({ label, value }))];
-        this.selectedDocument = result.record?.[LayoutListHelper.getFieldMapping(this.sObjectName, 'Document_Id__c', 'Document_Id__c')] || '';
-        this.documentSigningId = result.record?.[LayoutListHelper.getFieldMapping(this.sObjectName, 'Document_Signing_Id__c', 'Document_Signing_Id__c')] || '';
+        this.selectedDocument = result.record?.Document_Id__c || '';
+        this.documentSigningId = result.record?.Document_Signing_Id__c || '';
     }
 
     // Handle radio group change
@@ -109,47 +162,76 @@ export default class AuthentiSignLayoutList extends NavigationMixin(LightningEle
     }
 
     // Handle Create New Template button click
-    handleCreateTemplate() {
+    async handleCreateTemplate() {
         this.spinner = true;
-        console.log('Navigating to authentisignContentConfig with:', {
+        console.log('handleCreateTemplate called with:', {
             recordId: this.recordId,
             objectName: this.sObjectName,
-            signingId: '9f3a7828-6953-f011-8f7c-000d3a8a9962', // Hardcoded as per authentisignContentConfig
-            externalId: this.externalId
+            signingId: '9f3a7828-6953-f011-8f7c-000d3a8a9962',
+            externalId: this.externalId,
+            settingsLoaded: this.settingsLoaded,
+            settingsError: this.settingsError
         });
-        if (!this.externalId) {
+
+        // Validate required parameters
+        if (!this.recordId || !this.sObjectName) {
+            console.error('Missing required parameters:', { recordId: this.recordId, objectName: this.sObjectName });
             this.spinner = false;
-            this.showToast('Error', 'AuthentiSign settings (externalId) not loaded', 'error');
+            this.showToast('Error', 'Record ID or Object Name not provided', 'error', 'sticky');
             return;
         }
-        this[NavigationMixin.Navigate]({
-            type: 'standard__component',
-            attributes: {
-                componentName: 'c__authentisignContentConfig'
-            },
-            state: {
-                c__recordId: this.recordId,
-                c__objectName: this.sObjectName,
-                c__signingId: '9f3a7828-6953-f011-8f7c-000d3a8a9962', // Hardcoded as per authentisignContentConfig
-                c__externalId: this.externalId
+
+        // Ensure settings are loaded
+        if (!this.settingsLoaded || !this.externalId) {
+            console.log('Settings not loaded, attempting retry...');
+            try {
+                const settings = await getSettings();
+                console.log('Settings fetched on retry:', JSON.stringify(settings));
+                this.externalId = settings.externalId;
+                this.settingsLoaded = true;
+                this.settingsError = null;
+            } catch (error) {
+                console.error('Retry failed:', JSON.stringify(error));
+                this.spinner = false;
+                this.showToast('Error', 'Failed to load AuthentiSign settings: ' + (error.body?.message || 'Unknown error'), 'error', 'sticky');
+                return;
             }
+        }
+
+        // Navigation state
+        const navState = {
+            c__recordId: this.recordId,
+            c__objectName: this.sObjectName,
+            c__signingId: '9f3a7828-6953-f011-8f7c-000d3a8a9962',
+            c__externalId: this.externalId
+        };
+        console.log('Attempting navigation with state:', JSON.stringify(navState));
+
+        // Navigate to App Page (primary target)
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: {
+                apiName: 'Authentisign_SSO_Page'
+            },
+            state: navState
         }).then(() => {
-            console.log('Navigation to authentisignContentConfig successful');
+            console.log('Navigation to Authentisign_SSO_Page successful');
         }).catch(error => {
-            console.error('Navigation error:', JSON.stringify(error));
-            this.showToast('Error', 'Failed to navigate to AuthentiSign SSO page: ' + (error.message || 'Unknown error'), 'error');
-            // Fallback to App Page
+            console.error('App Page navigation error:', JSON.stringify(error));
+            this.showToast('Error', 'Failed to navigate to AuthentiSign SSO page: ' + (error.message || 'Unknown error'), 'error', 'sticky');
+            // Fallback to component navigation
+            console.log('Falling back to authentisignContentConfig with:', JSON.stringify(navState));
             this[NavigationMixin.Navigate]({
-                type: 'standard__navItemPage',
+                type: 'standard__component',
                 attributes: {
-                    apiName: 'Authentisign_SSO_Page' // Replace with your App Page API name
+                    componentName: 'c__authentisignContentConfig'
                 },
-                state: {
-                    c__recordId: this.recordId,
-                    c__objectName: this.sObjectName,
-                    c__signingId: '9f3a7828-6953-f011-8f7c-000d3a8a9962',
-                    c__externalId: this.externalId
-                }
+                state: navState
+            }).then(() => {
+                console.log('Navigation to authentisignContentConfig successful');
+            }).catch(fallbackError => {
+                console.error('Component navigation error:', JSON.stringify(fallbackError));
+                this.showToast('Error', 'Failed to navigate to AuthentiSign component: ' + (fallbackError.message || 'Unknown error'), 'error', 'sticky');
             });
         }).finally(() => {
             this.spinner = false;
@@ -162,29 +244,19 @@ export default class AuthentiSignLayoutList extends NavigationMixin(LightningEle
         const layout = this.layouts.find(layout => layout.value === this.selectedRecord);
         if (!layout) {
             this.spinner = false;
-            this.showToast('Error', 'Please select a layout', 'error');
+            this.showToast('Error', 'Please select a layout', 'error', 'sticky');
             return;
         }
 
         // Fetch existing mappings from Opportunity
-        const mappingsField = LayoutListHelper.getFieldMapping(this.sObjectName, 'Mappings__c', 'Mappings__c');
-        let record;
-        try {
-            record = DataLayer.getRecordById(this.recordId, this.sObjectName, [mappingsField]);
-        } catch (error) {
-            this.spinner = false;
-            this.showToast('Error', 'Failed to fetch mappings: ' + error.message, 'error');
-            return;
-        }
-
         let mappings = { fieldsMap: {}, rolesMap: {} };
-        const mappingsValue = record?.get(mappingsField);
+        const mappingsValue = this.record?.Mappings__c;
         if (mappingsValue) {
             try {
                 mappings = JSON.parse(mappingsValue);
             } catch (error) {
                 this.spinner = false;
-                this.showToast('Error', 'Invalid mappings format in Mappings__c', 'error');
+                this.showToast('Error', 'Invalid mappings format in Mappings__c', 'error', 'sticky');
                 return;
             }
         }
@@ -236,72 +308,70 @@ export default class AuthentiSignLayoutList extends NavigationMixin(LightningEle
     }
 
     // Display PDF for layout
-    displayPdf() {
+    async displayPdf() {
         if (this.attachmentId) {
             window.open(`/servlet/servlet.FileDownload?file=${this.attachmentId}`, '_blank');
         } else {
             this.spinner = true;
-            saveAttachment({
-                recordId: this.record.Id,
-                signingId: this.record[LayoutListHelper.getFieldMapping(this.sObjectName, 'Signing_Id__c', 'Signing_Id__c')] || '',
-                objectName: this.sObjectName,
-                isLayout: true
-            })
-                .then(attachmentId => {
-                    this.spinner = false;
-                    if (attachmentId) {
-                        this.attachmentId = attachmentId;
-                        this[NavigationMixin.GenerateUrl]({
-                            type: 'standard__webPage',
-                            attributes: {
-                                url: `/servlet/servlet.FileDownload?file=${attachmentId}`
-                            }
-                        }).then(url => {
-                            window.open(url, '_blank');
-                        });
-                    }
-                })
-                .catch(error => {
-                    this.spinner = false;
-                    this.showToast('Error', error.body?.message || 'Unknown error', 'error');
+            try {
+                const attachmentId = await saveAttachment({
+                    recordId: this.record.Id,
+                    signingId: this.record?.Signing_Id__c || '',
+                    objectName: this.sObjectName,
+                    isLayout: true
                 });
+                this.spinner = false;
+                if (attachmentId) {
+                    this.attachmentId = attachmentId;
+                    this[NavigationMixin.GenerateUrl]({
+                        type: 'standard__webPage',
+                        attributes: {
+                            url: `/servlet/servlet.FileDownload?file=${attachmentId}`
+                        }
+                    }).then(url => {
+                        window.open(url, '_blank');
+                    });
+                }
+            } catch (error) {
+                this.spinner = false;
+                this.showToast('Error', error.body?.message || 'Failed to save or display PDF', 'error', 'sticky');
+            }
         }
     }
 
     // Display PDF for document
-    displayPdfDocument() {
+    async displayPdfDocument() {
         if (this.documentAttachmentId) {
             window.open(`/servlet/servlet.FileDownload?file=${this.documentAttachmentId}`, '_blank');
         } else {
             this.spinner = true;
-            saveAttachment({
-                recordId: this.record.Id,
-                signingId: this.record[LayoutListHelper.getFieldMapping(this.sObjectName, 'Document_Signing_Id__c', 'Document_Signing_Id__c')] || '',
-                objectName: this.sObjectName,
-                isLayout: false
-            })
-                .then(attachmentId => {
-                    this.spinner = false;
-                    if (attachmentId) {
-                        this.documentAttachmentId = attachmentId;
-                        this[NavigationMixin.GenerateUrl]({
-                            type: 'standard__webPage',
-                            attributes: {
-                                url: `/servlet/servlet.FileDownload?file=${attachmentId}`
-                            }
-                        }).then(url => {
-                            window.open(url, '_blank');
-                        });
-                    }
-                })
-                .catch(error => {
-                    this.spinner = false;
-                    this.showToast('Error', error.body?.message || 'Unknown error', 'error');
+            try {
+                const attachmentId = await saveAttachment({
+                    recordId: this.record.Id,
+                    signingId: this.record?.Document_Signing_Id__c || '',
+                    objectName: this.sObjectName,
+                    isLayout: false
                 });
+                this.spinner = false;
+                if (attachmentId) {
+                    this.documentAttachmentId = attachmentId;
+                    this[NavigationMixin.GenerateUrl]({
+                        type: 'standard__webPage',
+                        attributes: {
+                            url: `/servlet/servlet.FileDownload?file=${attachmentId}`
+                        }
+                    }).then(url => {
+                        window.open(url, '_blank');
+                    });
+                }
+            } catch (error) {
+                this.spinner = false;
+                this.showToast('Error', error.body?.message || 'Failed to save or display document PDF', 'error', 'sticky');
+            }
         }
     }
 
-    showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    showToast(title, message, variant, mode = 'dismissable') {
+        this.dispatchEvent(new ShowToastEvent({ title, message, variant, mode }));
     }
 }
